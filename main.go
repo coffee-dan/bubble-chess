@@ -5,12 +5,26 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	color "github.com/fatih/color"
 )
 
-type model struct{}
+type model struct {
+	board [8][8]rune
+}
 
 func initialModel() model {
-	return model{}
+	return model{
+		board: [8][8]rune{
+			{'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'},
+			{'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'},
+			{'.', '.', '.', '.', '.', '.', '.', '.'},
+			{'.', '.', '.', '.', '.', '.', '.', '.'},
+			{'.', '.', '.', '.', '.', '.', '.', '.'},
+			{'.', '.', '.', '.', '.', '.', '.', '.'},
+			{'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'},
+			{'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'},
+		},
+	}
 }
 
 func (m model) Init() tea.Cmd {
@@ -35,17 +49,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func viewBoard(board [8][8]rune) string {
+	board_string := ""
+	black_bg := color.New(color.BgBlack).SprintFunc()
+	white_bg := color.New(color.BgWhite).SprintFunc()
+	is_white := true
+	for _, rank := range board {
+		for _, square := range rank {
+			square_string := fmt.Sprintf("%c ", square)
+			if is_white {
+				board_string += fmt.Sprintf(white_bg(square_string))
+			} else {
+				board_string += fmt.Sprintf(black_bg(square_string))
+			}
+			is_white = !is_white
+		}
+		is_white = !is_white
+		board_string += "\n"
+	}
+	return board_string
+}
+
 func (m model) View() string {
 	// The header
 	s := "You gais like ganoo chese\n\n"
-	s += "r n b q k b n r\n"
-	s += "p p p p p p p p\n"
-	s += ". . . . . . . .\n"
-	s += ". . . . . . . .\n"
-	s += ". . . . P . . .\n"
-	s += ". . . . . . . .\n"
-	s += "P P P P . P P P\n"
-	s += "R N B Q K B N R\n"
+	s += viewBoard(m.board)
 	s += "\nPress q to quit.\n"
 
 	return s
