@@ -41,7 +41,7 @@ func initialModel() model {
 
 	vp := viewport.New(30, 5)
 	vp.SetContent(`Welcome to Bubble Chess!
-	Type your move and press Enter to confirm.`)
+Type your move and press Enter to confirm.`)
 
 	ta.KeyMap.InsertNewline.SetEnabled(false)
 
@@ -85,7 +85,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			fmt.Println(m.nextMoveField.Value())
 			return m, tea.Quit
 		case tea.KeyEnter:
-			m.pastMoves = append(m.pastMoves, m.senderStyle.Render("You: ")+m.nextMoveField.Value())
+			m.pastMoves = append(m.pastMoves, m.senderStyle.Render("  You: ")+m.nextMoveField.Value())
 			m.viewport.SetContent(strings.Join(m.pastMoves, "\n"))
 			m.nextMoveField.Reset()
 			m.viewport.GotoBottom()
@@ -121,13 +121,18 @@ func viewBoard(board [8][8]rune) string {
 }
 
 func (m model) View() string {
+	leftPane := viewBoard(m.board)
+	rightPane := fmt.Sprintf(
+		"%s\n%s",
+		m.viewport.View(),
+		m.nextMoveField.View(),
+	)
+	mainContent := lipgloss.JoinHorizontal(lipgloss.Center, leftPane, rightPane)
 
 	return fmt.Sprintf(
-		"%s\n\n%s\n\n%s\n%s\n%s",
+		"\n%s\n\n%s\n\n%s",
 		"You gais like ganoo chese",
-		m.viewport.View(),
-		viewBoard(m.board),
-		m.nextMoveField.View(),
+		mainContent,
 		"Press esc to quit.\n",
 	)
 }
