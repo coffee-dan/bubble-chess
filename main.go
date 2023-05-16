@@ -3,17 +3,54 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	color "github.com/fatih/color"
 )
 
 type model struct {
-	board [8][8]rune
+	viewport      viewport.Model
+	pastMoves     []string
+	nextMoveField textarea.Model
+	senderStyle   lipgloss.Style
+	board         [8][8]rune
+	err           error
 }
 
+type (
+	errMsg error
+)
+
 func initialModel() model {
+	ta := textarea.New()
+	ta.Placeholder = "Your move."
+	ta.Focus()
+
+	ta.Prompt = "┃ "
+	ta.CharLimit = 280
+
+	ta.SetWidth(30)
+	ta.SetHeight(3)
+
+	// Remove cusror line styling
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
+
+	vp := viewport.New(30, 5)
+	vp.SetContent(`Welcome to Bubble Chess!
+Type your move and press Enter to confirm.`)
+
+	ta.KeyMap.InsertNewline.SetEnabled(false)
+
 	return model{
+		nextMoveField: ta,
+		pastMoves:     []string{},
+		viewport:      vp,
+		senderStyle:   lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
+		err:           nil,
 		board: [8][8]rune{
 			{'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'},
 			{'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'},
@@ -29,24 +66,37 @@ func initialModel() model {
 
 func (m model) Init() tea.Cmd {
 	// Just return `nil`, which means "no I/O right now, please."
-	return nil
+	return textarea.Blink
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var (
+		tiCmd tea.Cmd
+		vpCmd tea.Cmd
+	)
+
+	m.nextMoveField, tiCmd = m.nextMoveField.Update(msg)
+	m.viewport, vpCmd = m.viewport.Update(msg)
+
 	switch msg := msg.(type) {
-
 	case tea.KeyMsg:
-		switch msg.String() {
-
-		// These keys should exit the program.
-		case "ctrl+c", "q":
+		switch msg.Type {
+		case tea.KeyCtrlC, tea.KeyEsc:
+			fmt.Println(m.nextMoveField.Value())
 			return m, tea.Quit
+		case tea.KeyEnter:
+			m.pastMoves = append(m.pastMoves, m.senderStyle.Render("  You: ")+m.nextMoveField.Value())
+			m.viewport.SetContent(strings.Join(m.pastMoves, "\n"))
+			m.nextMoveField.Reset()
+			m.viewport.GotoBottom()
 		}
+	case errMsg:
+		m.err = msg
+		return m, nil
+
 	}
 
-	// Return the updated model to the Bubble Tea runtime for processing.
-	// Note that we're not returning a command.
-	return m, nil
+	return m, tea.Batch(tiCmd, vpCmd)
 }
 
 func viewBoard(board [8][8]rune) string {
@@ -71,12 +121,20 @@ func viewBoard(board [8][8]rune) string {
 }
 
 func (m model) View() string {
-	// The header
-	s := "You gais like ganoo chese\n\n"
-	s += viewBoard(m.board)
-	s += "\nPress q to quit.\n"
+	leftPane := viewBoard(m.board)
+	rightPane := fmt.Sprintf(
+		"%s\n%s",
+		m.viewport.View(),
+		m.nextMoveField.View(),
+	)
+	mainContent := lipgloss.JoinHorizontal(lipgloss.Center, leftPane, rightPane)
 
-	return s
+	return fmt.Sprintf(
+		"\n%s\n\n%s\n\n%s",
+		"You gais like ganoo chese",
+		mainContent,
+		"Press esc to quit.\n",
+	)
 }
 
 func main() {
