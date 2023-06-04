@@ -127,7 +127,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(tiCmd, vpCmd)
 }
 
-func viewBoard(m model) string {
+func (m model) viewBoard() string {
 	board_string := ""
 	black_bg := color.New(color.BgBlack).SprintFunc()
 	white_bg := color.New(color.BgWhite).SprintFunc()
@@ -154,7 +154,7 @@ func viewBoard(m model) string {
 }
 
 func (m model) View() string {
-	leftPane := viewBoard(m)
+	leftPane := m.viewBoard()
 	rightPane := fmt.Sprintf(
 		"%s\n%s",
 		m.viewport.View(),
