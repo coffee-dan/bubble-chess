@@ -12,12 +12,30 @@ import (
 	color "github.com/fatih/color"
 )
 
+const PAWN = 0
+const KNIGHT = 1
+const BISHOP = 2
+const ROOK = 3
+const QUEEN = 4
+const KING = 5
+
+const WHITE = 0
+const BLACK = 1
+
+const EMPTY = 6
+
+var pieceRunes = map[int][]rune{
+	WHITE: {'P', 'N', 'B', 'R', 'Q', 'K'},
+	BLACK: {'p', 'n', 'b', 'r', 'q', 'k'},
+}
+
 type model struct {
 	viewport      viewport.Model
 	pastMoves     []string
 	nextMoveField textarea.Model
 	senderStyle   lipgloss.Style
-	board         [8][8]rune
+	pieceBoard    [64]int
+	colorBoard    [64]int
 	err           error
 }
 
@@ -51,15 +69,25 @@ Type your move and press Enter to confirm.`)
 		viewport:      vp,
 		senderStyle:   lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
 		err:           nil,
-		board: [8][8]rune{
-			{'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'},
-			{'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'},
-			{'.', '.', '.', '.', '.', '.', '.', '.'},
-			{'.', '.', '.', '.', '.', '.', '.', '.'},
-			{'.', '.', '.', '.', '.', '.', '.', '.'},
-			{'.', '.', '.', '.', '.', '.', '.', '.'},
-			{'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'},
-			{'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'},
+		pieceBoard: [64]int{
+			3, 1, 2, 4, 5, 2, 1, 3,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			6, 6, 6, 6, 6, 6, 6, 6,
+			6, 6, 6, 6, 6, 6, 6, 6,
+			6, 6, 6, 6, 6, 6, 6, 6,
+			6, 6, 6, 6, 6, 6, 6, 6,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			3, 1, 2, 4, 5, 2, 1, 3,
+		},
+		colorBoard: [64]int{
+			1, 1, 1, 1, 1, 1, 1, 1,
+			1, 1, 1, 1, 1, 1, 1, 1,
+			6, 6, 6, 6, 6, 6, 6, 6,
+			6, 6, 6, 6, 6, 6, 6, 6,
+			6, 6, 6, 6, 6, 6, 6, 6,
+			6, 6, 6, 6, 6, 6, 6, 6,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0,
 		},
 	}
 }
@@ -99,29 +127,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(tiCmd, vpCmd)
 }
 
-func viewBoard(board [8][8]rune) string {
+func viewBoard(m model) string {
 	board_string := ""
 	black_bg := color.New(color.BgBlack).SprintFunc()
 	white_bg := color.New(color.BgWhite).SprintFunc()
 	is_white := true
-	for _, rank := range board {
-		for _, square := range rank {
-			square_string := fmt.Sprintf("%c ", square)
-			if is_white {
-				board_string += fmt.Sprintf(white_bg(square_string))
-			} else {
-				board_string += fmt.Sprintf(black_bg(square_string))
-			}
-			is_white = !is_white
+	for index, square := range m.pieceBoard {
+		square_string := ". "
+		if square != EMPTY {
+			color := m.colorBoard[index]
+			square_string = fmt.Sprintf("%c ", pieceRunes[color][square])
+		}
+
+		if is_white {
+			board_string += fmt.Sprintf(white_bg(square_string))
+		} else {
+			board_string += fmt.Sprintf(black_bg(square_string))
 		}
 		is_white = !is_white
-		board_string += "\n"
+		if (index+1)%8 == 0 {
+			is_white = !is_white
+			board_string += "\n"
+		}
 	}
 	return board_string
 }
 
 func (m model) View() string {
-	leftPane := viewBoard(m.board)
+	leftPane := viewBoard(m)
 	rightPane := fmt.Sprintf(
 		"%s\n%s",
 		m.viewport.View(),
