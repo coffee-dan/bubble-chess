@@ -13,6 +13,8 @@ import (
 	color "github.com/fatih/color"
 )
 
+const HISTORY_SIZE = 400
+
 const PAWN = 0
 const KNIGHT = 1
 const BISHOP = 2
@@ -83,6 +85,8 @@ type Chess struct {
 	nextMoveField textarea.Model
 	youStyle      lipgloss.Style
 	themStyle     lipgloss.Style
+	history       [HISTORY_SIZE]snapshot
+	historyIdx    int
 	pieceBoard    [64]int
 	colorBoard    [64]int
 	playerSide    int
@@ -101,6 +105,15 @@ type move struct {
 	pawnPushing bool
 	pawnMove    bool
 	promoting   bool
+}
+
+type snapshot struct {
+	lastMove      move
+	capturedPiece int // the dearly departed
+	// TODO: castling rights
+	// TODO: where was the en passant square
+	// TODO: fifty-move-draw rule indicator
+	// TODO: sha of the position
 }
 
 type (
@@ -133,7 +146,8 @@ Type your move and press Enter to confirm.`)
 		viewport:      vp,
 		youStyle:      lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
 		themStyle:     lipgloss.NewStyle().Foreground(lipgloss.Color("10")),
-		err:           nil,
+		history:       [HISTORY_SIZE]snapshot{},
+		historyIdx:    0,
 		pieceBoard: [64]int{
 			3, 1, 2, 4, 5, 2, 1, 3,
 			0, 0, 0, 0, 0, 0, 0, 0,
@@ -157,6 +171,7 @@ Type your move and press Enter to confirm.`)
 		side:       WHITE,
 		xside:      BLACK,
 		playerSide: WHITE,
+		err:        nil,
 	}
 }
 
@@ -204,12 +219,12 @@ func (c *Chess) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// 	fmt.Sprintf("parseMove: %d -> %d", nextMove.from, nextMove.to),
 			// )
 
-			_, err = c.makeMove(nextMove)
+			res, err := c.makeMove(nextMove)
 
-			// c.pastMoves = append(c.pastMoves, fmt.Sprintf("makeMove: %t", res))
-			// if err != nil {
-			// 	c.pastMoves = append(c.pastMoves, fmt.Sprintf("%e", err))
-			// }
+			c.pastMoves = append(c.pastMoves, fmt.Sprintf("makeMove: %t", res))
+			if err != nil {
+				c.pastMoves = append(c.pastMoves, fmt.Sprintf("%e", err))
+			}
 
 			// validate semantics (does the player have those pieces)
 			// validate move pragmatics (is that move legal?)
@@ -277,10 +292,6 @@ func toRank(boardIndex int) int {
 	return boardIndex >> 3
 }
 
-func otherSide(side int) int {
-	return side ^ 1
-}
-
 func getMoveDestination(currentIndex int, moveOffset int) (dest int, err error) {
 	dest = boundaryBoard[upscaleBoard[currentIndex]+moveOffset]
 	if dest == -1 {
@@ -333,7 +344,7 @@ func (c *Chess) underAttack(target int, side int) bool {
 func (c *Chess) inCheck(side int) bool {
 	for idx, square := range c.pieceBoard {
 		if square == KING && c.colorBoard[idx] == side {
-			return c.underAttack(idx, otherSide(side))
+			return c.underAttack(idx, side^1)
 		}
 	}
 	return false // no king ig
@@ -346,10 +357,16 @@ func (c *Chess) makeMove(mov move) (res bool, err error) {
 		err = ErrNotImplemented
 	}
 
-	// TODO: back up information so we can take the move back later
+	// back up move and irreversible board info
+	c.history[c.historyIdx] = snapshot{
+		lastMove:      mov,
+		capturedPiece: c.pieceBoard[mov.to],
+	}
+	c.historyIdx++
 
 	// TODO: update castling, en passant, and 50-move-draw vars
 
+	// move the piece
 	c.colorBoard[mov.to] = c.side
 	if mov.promoting {
 		c.pieceBoard[mov.to] = mov.promotion
@@ -359,21 +376,58 @@ func (c *Chess) makeMove(mov move) (res bool, err error) {
 	c.colorBoard[mov.from] = EMPTY
 	c.pieceBoard[mov.from] = EMPTY
 
+	// how do we determine that the move was an enPassant?
 	if mov.enPassant {
-		err = ErrNotImplemented
+		if c.side == WHITE {
+			c.colorBoard[mov.to+8] = EMPTY
+			c.pieceBoard[mov.to+8] = EMPTY
+		} else {
+			c.colorBoard[mov.to-8] = EMPTY
+			c.pieceBoard[mov.to-8] = EMPTY
+		}
 	}
 
-	c.side = otherSide(c.side)
-	c.xside = otherSide(c.xside)
-
-	// if c.inCheck(c.xside) {
-	// 	err = ErrCannotCheckYrself
-	// 	res = false
-	// }
+	c.side ^= 1
+	c.xside ^= 1
+	if c.inCheck(c.xside) {
+		c.takeback()
+		res = false
+	}
 
 	// TODO: generate unique hash of board state for repetition tracking
 
 	return
+}
+
+// bits info from tscp182
+// 1	capture
+// 2	castle
+// 4	en passant capture
+// 8	pushing a pawn 2 squares
+// 16	pawn move
+// 32	promote
+
+func (c *Chess) takeback() {
+
+	c.side ^= 1
+	c.xside ^= 1
+	c.historyIdx--
+	mov := c.history[c.historyIdx].lastMove
+	// TOOD: reset the various game info flags
+	c.colorBoard[mov.from] = c.side
+	// TODO: undo promotion if it happened
+
+	if c.history[c.historyIdx].capturedPiece == EMPTY {
+		c.colorBoard[mov.to] = EMPTY
+		c.pieceBoard[mov.to] = EMPTY
+	} else {
+		c.colorBoard[mov.to] = c.xside
+		c.pieceBoard[mov.to] = c.history[c.historyIdx].capturedPiece
+	}
+
+	// TODO: undo castling if it happened
+	// TODO: undo enPassant if it happened
+
 }
 
 func (c *Chess) viewBoard() string {
