@@ -248,6 +248,22 @@ func (c *Chess) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return c, tea.Batch(tiCmd, vpCmd)
 }
 
+// Convert board index to a human readable coordinate
+// primarily for debugging
+func toCoord(index int) (coord string) {
+	letter := rune(index%8 + 'a')
+	number := 8 - index/8
+	return fmt.Sprintf("%c%d", letter, number)
+}
+
+// Convert human readable coordiante to board index, very useful for writing
+// tests which you want to be legible
+func toIndex(coord string) (index int) {
+	index = int(coord[0] - 'a')
+	index += 8 * (8 - int(coord[1]-'0'))
+	return
+}
+
 func (c *Chess) parseMove(userInput string) (mov move, err error) {
 	var (
 		from int
@@ -304,6 +320,9 @@ func getMoveDestination(currentIndex int, moveOffset int) (dest int, err error) 
 func (c *Chess) underAttack(target int, side int) bool {
 	for idx, square := range c.pieceBoard {
 		if square == target {
+			continue
+		}
+		if c.colorBoard[idx] == side^1 {
 			continue
 		}
 		if square == PAWN {

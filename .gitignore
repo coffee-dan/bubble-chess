@@ -19,3 +19,9 @@
 
 # Go workspace file
 go.work
+
+# VSCode
+.vscode/
+
+# Delve
+__debug_bin
