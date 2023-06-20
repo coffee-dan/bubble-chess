@@ -385,15 +385,18 @@ func (c *Chess) makeMove(mov move) (res bool, err error) {
 
 	// TODO: update castling, en passant, and 50-move-draw vars
 
-	// move the piece
+	// move the piece; the piece leaves before it arrives. this handles a wild
+	// edge case that only matters when move gen is not implmented
+	piece := c.pieceBoard[mov.from]
+	c.colorBoard[mov.from] = EMPTY
+	c.pieceBoard[mov.from] = EMPTY
+
 	c.colorBoard[mov.to] = c.side
 	if mov.promoting {
 		c.pieceBoard[mov.to] = mov.promotion
 	} else {
-		c.pieceBoard[mov.to] = c.pieceBoard[mov.from]
+		c.pieceBoard[mov.to] = piece
 	}
-	c.colorBoard[mov.from] = EMPTY
-	c.pieceBoard[mov.from] = EMPTY
 
 	// how do we determine that the move was an enPassant?
 	if mov.enPassant {
