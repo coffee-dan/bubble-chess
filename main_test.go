@@ -79,3 +79,21 @@ func TestUnderAttack(t *testing.T) {
 		t.Errorf("Error, got: %t, want: %t", result, false)
 	}
 }
+
+func TestMakeMove(t *testing.T) {
+	chess := New()
+	success, _ := chess.makeMove(move{
+		from: toIndex("e1"),
+		to:   toIndex("e6"),
+	})
+
+	if success {
+		t.Errorf("Error, got: %t, want: %t", success, false)
+	}
+
+	pieceAtE1 := chess.pieceBoard[toIndex("e1")]
+
+	if pieceAtE1 == EMPTY {
+		t.Errorf("Error, king has gone away")
+	}
+}

@@ -437,6 +437,7 @@ func (c *Chess) takeback() {
 	mov := c.history[c.historyIdx].lastMove
 	// TOOD: reset the various game info flags
 	c.colorBoard[mov.from] = c.side
+	c.pieceBoard[mov.from] = c.pieceBoard[mov.to]
 	// TODO: undo promotion if it happened
 
 	if c.history[c.historyIdx].capturedPiece == EMPTY {
