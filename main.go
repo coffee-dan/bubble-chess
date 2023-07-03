@@ -455,12 +455,20 @@ func (c *Chess) takeback() {
 
 func (c *Chess) viewBoard() string {
 	board_string := ""
+	square_string := ""
 	black_bg := color.New(color.BgBlack).SprintFunc()
 	white_bg := color.New(color.BgWhite).SprintFunc()
 	is_white := true
+	board_string += fmt.Sprintf(black_bg(("  A B C D E F G H   \n")))
+
 	for index, square := range c.pieceBoard {
-		square_string := ". "
-		if square != EMPTY {
+		if index%8 == 0 {
+			board_string += fmt.Sprintf(black_bg(fmt.Sprintf("%d ", 8-(index/8))))
+		}
+
+		if square == EMPTY {
+			square_string = "  "
+		} else {
 			color := c.colorBoard[index]
 			square_string = fmt.Sprintf("%c ", pieceRunes[color][square])
 		}
@@ -470,12 +478,18 @@ func (c *Chess) viewBoard() string {
 		} else {
 			board_string += fmt.Sprintf(black_bg(square_string))
 		}
+
+		if index%8 == 7 {
+			board_string += fmt.Sprintf(black_bg(fmt.Sprintf("%d ", 8-(index/8))))
+		}
+
 		is_white = !is_white
 		if (index+1)%8 == 0 {
 			is_white = !is_white
 			board_string += "\n"
 		}
 	}
+	board_string += fmt.Sprintf(black_bg(("  A B C D E F G H   \n")))
 	return board_string
 }
 
