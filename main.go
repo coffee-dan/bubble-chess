@@ -454,42 +454,59 @@ func (c *Chess) takeback() {
 }
 
 func (c *Chess) viewBoard() string {
-	board_string := ""
-	square_string := ""
-	black_bg := color.New(color.BgBlack).SprintFunc()
-	white_bg := color.New(color.BgWhite).SprintFunc()
-	is_white := true
-	board_string += fmt.Sprintf(black_bg(("  A B C D E F G H   \n")))
+	var board_string string
+	var pieceString string
+
+	border := color.New(color.BgBlack)
+	squareBlack := color.BgMagenta
+	squareWhite := color.BgCyan
+	pieceBlack := color.FgBlack
+	pieceWhite := color.FgWhite
+
+	isWhite := true
+
+	board_string += border.Sprint("  A B C D E F G H   ")
+	board_string += fmt.Sprint("\n")
 
 	for index, square := range c.pieceBoard {
 		if index%8 == 0 {
-			board_string += fmt.Sprintf(black_bg(fmt.Sprintf("%d ", 8-(index/8))))
+			board_string += border.Sprintf("%d ", 8-(index/8))
 		}
+
+		cellColor := color.New()
 
 		if square == EMPTY {
-			square_string = "  "
+			pieceString = "  "
 		} else {
-			color := c.colorBoard[index]
-			square_string = fmt.Sprintf("%c ", pieceRunes[color][square])
+			pieceColor := c.colorBoard[index]
+
+			if pieceColor == WHITE {
+				cellColor.Add(pieceWhite)
+			} else {
+				cellColor.Add(pieceBlack)
+			}
+			pieceString = fmt.Sprintf("%c ", pieceRunes[pieceColor][square])
 		}
 
-		if is_white {
-			board_string += fmt.Sprintf(white_bg(square_string))
+		if isWhite {
+			cellColor.Add(squareWhite)
 		} else {
-			board_string += fmt.Sprintf(black_bg(square_string))
+			cellColor.Add(squareBlack)
 		}
+		board_string += cellColor.Sprintf(pieceString)
 
 		if index%8 == 7 {
-			board_string += fmt.Sprintf(black_bg(fmt.Sprintf("%d ", 8-(index/8))))
+			board_string += border.Sprintf("%d ", 8-(index/8))
 		}
 
-		is_white = !is_white
+		isWhite = !isWhite
 		if (index+1)%8 == 0 {
-			is_white = !is_white
+			isWhite = !isWhite
 			board_string += "\n"
 		}
 	}
-	board_string += fmt.Sprintf(black_bg(("  A B C D E F G H   \n")))
+	board_string += border.Sprint("  A B C D E F G H   ")
+	board_string += fmt.Sprint("\n")
 	return board_string
 }
 
