@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 )
 
@@ -96,4 +97,59 @@ func TestMakeMove(t *testing.T) {
 	if pieceAtE1 == EMPTY {
 		t.Errorf("Error, king has gone away")
 	}
+}
+
+func (c *Chess) clearBoard() {
+	for idx := range c.pieceBoard {
+		c.pieceBoard[idx] = EMPTY
+	}
+	for idx := range c.colorBoard {
+		c.colorBoard[idx] = EMPTY
+	}
+}
+
+func (c *Chess) setPiece(piece int, color int, coord string) {
+	idx := toIndex(coord)
+	c.pieceBoard[idx] = piece
+	c.colorBoard[idx] = color
+}
+
+func equal(slice1 []move, slice2 []move) bool {
+	if len(slice1) != len(slice2) {
+		return false
+	}
+
+	sort.Sort(byTo(slice1))
+	sort.Sort(byTo(slice2))
+
+	for i, mov := range slice1 {
+		if mov != slice2[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestGenerateFuture(t *testing.T) {
+	chess := New()
+	chess.clearBoard()
+	chess.setPiece(PAWN, WHITE, "e2")
+	moves, _ := chess.generateFuture(WHITE)
+
+	expectedMoves := []move{
+		{
+			from: toIndex("e2"),
+			to:   toIndex("e3"),
+		},
+		{
+			from: toIndex("e2"),
+			to:   toIndex("e4"),
+		},
+	}
+
+	if !equal(moves, expectedMoves) {
+		fmt.Printf("%+v\n\n", move{})
+		t.Errorf("Error, got: %v, want: %v", moves, expectedMoves)
+	}
+
 }

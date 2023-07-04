@@ -85,8 +85,10 @@ type Chess struct {
 	nextMoveField textarea.Model
 	youStyle      lipgloss.Style
 	themStyle     lipgloss.Style
+	future        []move
+	futureIdx     int
 	history       [HISTORY_SIZE]snapshot
-	historyIdx    int
+	historyIdx    int // Number of half-moves (ply) since the start of the game
 	pieceBoard    [64]int
 	colorBoard    [64]int
 	playerSide    int
@@ -106,6 +108,12 @@ type move struct {
 	pawnMove    bool
 	promoting   bool
 }
+
+type byTo []move
+
+func (ml byTo) Len() int           { return len(ml) }
+func (ml byTo) Less(i, j int) bool { return ml[i].to < ml[j].to }
+func (ml byTo) Swap(i, j int)      { ml[i], ml[j] = ml[j], ml[i] }
 
 type snapshot struct {
 	lastMove      move
@@ -299,10 +307,12 @@ func (c *Chess) parseMove(userInput string) (mov move, err error) {
 	return
 }
 
+// Convert index to side to side rows, typically denoted by numbers a-h
 func toFile(boardIndex int) int {
 	return boardIndex & 7
 }
 
+// Convert index to fore-to-aft columns, typically denoted by letters 1-8
 func toRank(boardIndex int) int {
 	// Equivalent to dividing by 8 and discarding remainder. But this is cooler B)
 	return boardIndex >> 3
@@ -367,6 +377,49 @@ func (c *Chess) inCheck(side int) bool {
 		}
 	}
 	return false // no king ig
+}
+
+// Generate list of psuedo-legal moves for the current position
+func (c *Chess) generateFuture(side int) (future []move, err error) {
+	for idx, square := range c.pieceBoard {
+		if c.colorBoard[idx] == side^1 {
+			continue
+		}
+
+		if square == PAWN {
+			if side == WHITE {
+				if c.pieceBoard[idx-8] == EMPTY {
+					future = append(future, move{
+						from: idx, to: idx - 8,
+					})
+				}
+				// twice forward move
+				fmt.Printf("file %d\n", toFile(idx))
+				fmt.Printf("rank %d\n", toRank(idx))
+				if toRank(idx) == 6 {
+					future = append(future, move{
+						from: idx, to: idx - 16,
+					})
+				}
+
+				// left-capture
+				if toFile(idx) != 0 && c.colorBoard[idx-9] == BLACK {
+					future = append(future, move{
+						from: idx, to: idx - 9,
+					})
+				}
+
+				// right-capture
+				if toFile(idx) != 7 && c.colorBoard[idx-7] == BLACK {
+					future = append(future, move{
+						from: idx, to: idx - 7,
+					})
+				}
+
+			}
+		}
+	}
+	return
 }
 
 func (c *Chess) makeMove(mov move) (res bool, err error) {
@@ -473,7 +526,7 @@ func (c *Chess) viewBoard() string {
 			board_string += border.Sprintf("%d ", 8-(index/8))
 		}
 
-		cellColor := color.New()
+		cellStyle := color.New()
 
 		if square == EMPTY {
 			pieceString = "  "
@@ -481,19 +534,24 @@ func (c *Chess) viewBoard() string {
 			pieceColor := c.colorBoard[index]
 
 			if pieceColor == WHITE {
-				cellColor.Add(pieceWhite)
+				cellStyle.Add(pieceWhite)
 			} else {
-				cellColor.Add(pieceBlack)
+				cellStyle.Add(pieceBlack)
 			}
 			pieceString = fmt.Sprintf("%c ", pieceRunes[pieceColor][square])
 		}
 
 		if isWhite {
-			cellColor.Add(squareWhite)
+			cellStyle.Add(squareWhite)
 		} else {
-			cellColor.Add(squareBlack)
+			cellStyle.Add(squareBlack)
 		}
-		board_string += cellColor.Sprintf(pieceString)
+
+		if index == 0 {
+			cellStyle.Add(color.BgRed)
+		}
+
+		board_string += cellStyle.Sprintf(pieceString)
 
 		if index%8 == 7 {
 			board_string += border.Sprintf("%d ", 8-(index/8))
