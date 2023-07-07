@@ -212,40 +212,44 @@ func (c *Chess) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			input := c.nextMoveField.Value()
 
-			// validate move syntax (proper form)
-			nextMove, err := c.parseMove(input)
+			var errors []error
 
-			var senderString string
-			if err == nil {
-				senderString = fmt.Sprintf("  %s: ", whoami)
-			} else {
-				senderString = fmt.Sprintf("  %s (invalid): ", whoami)
+			// validate move syntax (proper form)
+			nextMove, parseErr := c.parseMove(input)
+
+			var validation string
+			if parseErr != nil {
+				validation = " (invalid)"
+				errors = append(errors, parseErr)
 			}
+			senderString := fmt.Sprintf("  %s%s: ", whoami, validation)
 			c.pastMoves = append(c.pastMoves, senderStyle.Render(senderString)+input)
 
-			// c.pastMoves = append(c.pastMoves,
-			// 	fmt.Sprintf("parseMove: %d -> %d", nextMove.from, nextMove.to),
-			// )
+			if len(errors) == 0 {
+				// c.pastMoves = append(c.pastMoves,
+				// 	fmt.Sprintf("parseMove: %d -> %d", nextMove.from, nextMove.to),
+				// )
 
-			res, err := c.makeMove(nextMove)
+				res, moveErr := c.makeMove(nextMove)
 
-			c.pastMoves = append(c.pastMoves, fmt.Sprintf("makeMove: %t", res))
-			if err != nil {
-				c.pastMoves = append(c.pastMoves, fmt.Sprintf("%e", err))
+				c.pastMoves = append(c.pastMoves, fmt.Sprintf("makeMove: %t", res))
+				if moveErr != nil {
+					c.pastMoves = append(c.pastMoves, fmt.Sprintf("%e", moveErr))
+				}
+
+				// validate semantics (does the player have those pieces)
+				// validate move pragmatics (is that move legal?)
+				// 		- is _this_ side in check?
+				// 		-
+				// - do the move
+				// - prompt for promotion
+				// - send error message
+				// switch turns
+
+				c.viewport.SetContent(strings.Join(c.pastMoves, "\n"))
+				c.nextMoveField.Reset()
+				c.viewport.GotoBottom()
 			}
-
-			// validate semantics (does the player have those pieces)
-			// validate move pragmatics (is that move legal?)
-			// 		- is _this_ side in check?
-			// 		-
-			// - do the move
-			// - prompt for promotion
-			// - send error message
-			// switch turns
-
-			c.viewport.SetContent(strings.Join(c.pastMoves, "\n"))
-			c.nextMoveField.Reset()
-			c.viewport.GotoBottom()
 		}
 	case errMsg:
 		c.err = msg
@@ -518,27 +522,42 @@ func (c *Chess) viewBoard() string {
 
 	isWhite := true
 
-	board_string += border.Sprint("  A B C D E F G H   ")
-	board_string += fmt.Sprint("\n")
+	var fileLabels string
+	switch c.side {
+	case WHITE:
+		fileLabels = "  A B C D E F G H   "
+	case BLACK:
+		fileLabels = "  H G F E D C B A   "
+	}
 
-	for index, square := range c.pieceBoard {
-		if index%8 == 0 {
-			board_string += border.Sprintf("%d ", 8-(index/8))
+	board_string += border.Sprint(fileLabels)
+	board_string += "\n"
+
+	var idx int
+
+	for i := range c.pieceBoard {
+		switch c.side {
+		case WHITE:
+			idx = i
+		case BLACK:
+			idx = len(c.pieceBoard) - 1 - i
+		}
+
+		if i%8 == 0 {
+			board_string += border.Sprintf("%d ", 8-(idx/8))
 		}
 
 		cellStyle := color.New()
-
-		if square == EMPTY {
+		if pType := c.pieceBoard[idx]; pType == EMPTY {
 			pieceString = "  "
 		} else {
-			pieceColor := c.colorBoard[index]
-
-			if pieceColor == WHITE {
+			pColor := c.colorBoard[idx]
+			if pColor == WHITE {
 				cellStyle.Add(pieceWhite)
 			} else {
 				cellStyle.Add(pieceBlack)
 			}
-			pieceString = fmt.Sprintf("%c ", pieceRunes[pieceColor][square])
+			pieceString = fmt.Sprintf("%c ", pieceRunes[pColor][pType])
 		}
 
 		if isWhite {
@@ -547,24 +566,21 @@ func (c *Chess) viewBoard() string {
 			cellStyle.Add(squareBlack)
 		}
 
-		if index == 0 {
+		if idx == 0 {
 			cellStyle.Add(color.BgRed)
 		}
 
 		board_string += cellStyle.Sprintf(pieceString)
 
-		if index%8 == 7 {
-			board_string += border.Sprintf("%d ", 8-(index/8))
-		}
-
 		isWhite = !isWhite
-		if (index+1)%8 == 0 {
+		if i%8 == 7 {
 			isWhite = !isWhite
+			board_string += border.Sprintf("%d ", 8-(idx/8))
 			board_string += "\n"
 		}
 	}
-	board_string += border.Sprint("  A B C D E F G H   ")
-	board_string += fmt.Sprint("\n")
+	board_string += border.Sprint(fileLabels)
+	board_string += "\n"
 	return board_string
 }
 
