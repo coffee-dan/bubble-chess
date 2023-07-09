@@ -99,19 +99,16 @@ func TestMakeMove(t *testing.T) {
 	}
 }
 
-func (c *Chess) clearBoard() {
-	for idx := range c.pieceBoard {
-		c.pieceBoard[idx] = EMPTY
-	}
-	for idx := range c.colorBoard {
-		c.colorBoard[idx] = EMPTY
-	}
-}
-
 func (c *Chess) setPiece(piece int, color int, coord string) {
 	idx := toIndex(coord)
 	c.pieceBoard[idx] = piece
 	c.colorBoard[idx] = color
+}
+
+func (c *Chess) setPlayer(side int) {
+	c.side = side
+	c.xside = side ^ 1
+	c.playerSide = side
 }
 
 func equal(slice1 []move, slice2 []move) bool {
@@ -130,26 +127,65 @@ func equal(slice1 []move, slice2 []move) bool {
 	return true
 }
 
-func TestGenerateFuture(t *testing.T) {
-	chess := New()
-	chess.clearBoard()
-	chess.setPiece(PAWN, WHITE, "e2")
-	moves, _ := chess.generateFuture(WHITE)
+var blankBoard = [64]int{
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+}
 
-	expectedMoves := []move{
-		{
-			from: toIndex("e2"),
-			to:   toIndex("e3"),
-		},
-		{
-			from: toIndex("e2"),
-			to:   toIndex("e4"),
-		},
+func NewBlank() *Chess {
+	c := New()
+	c.pieceBoard = blankBoard
+	c.colorBoard = blankBoard
+	return c
+}
+
+var sideNames = []string{
+	"White", "Black",
+}
+
+var pieceNames = []string{
+	"Pawn", "Knight", "Bishop", "Rook", "Queen", "King",
+}
+
+func TestGenerateFutureSinglePieces(t *testing.T) {
+	var examples = []struct {
+		piece        int
+		side         int
+		start        string
+		destinations []string
+	}{
+		{PAWN, WHITE, "e2", []string{"e3", "e4"}},
+		{PAWN, BLACK, "d7", []string{"d5", "d6"}},
 	}
 
-	if !equal(moves, expectedMoves) {
-		fmt.Printf("%+v\n\n", move{})
-		t.Errorf("Error, got: %v, want: %v", moves, expectedMoves)
-	}
+	for _, ex := range examples {
+		tName := fmt.Sprintf("%s %s at %s %v",
+			sideNames[ex.side], pieceNames[ex.piece], ex.start, ex.destinations,
+		)
+		t.Run(tName, func(t *testing.T) {
+			chess := NewBlank()
+			chess.setPiece(ex.piece, ex.side, ex.start)
+			moves, _ := chess.generateFuture(ex.side)
 
+			startIdx := toIndex(ex.start)
+			var expectedMoves []move
+			for _, dest := range ex.destinations {
+				expectedMoves = append(expectedMoves, move{
+					from: startIdx,
+					to:   toIndex(dest),
+				})
+			}
+
+			if !equal(moves, expectedMoves) {
+				fmt.Printf("%+v\n\n", move{})
+				t.Errorf("Error, got: %v, want: %v", moves, expectedMoves)
+			}
+		})
+	}
 }

@@ -398,8 +398,6 @@ func (c *Chess) generateFuture(side int) (future []move, err error) {
 					})
 				}
 				// twice forward move
-				fmt.Printf("file %d\n", toFile(idx))
-				fmt.Printf("rank %d\n", toRank(idx))
 				if toRank(idx) == 6 {
 					future = append(future, move{
 						from: idx, to: idx - 16,
