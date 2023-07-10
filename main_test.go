@@ -37,7 +37,7 @@ func (c *Chess) setPlayer(side int) {
 	c.playerSide = side
 }
 
-func equal(slice1 []move, slice2 []move) bool {
+func equal(slice1, slice2 []move) bool {
 	if len(slice1) != len(slice2) {
 		return false
 	}
@@ -213,6 +213,8 @@ func TestGenerateFutureSinglePieces(t *testing.T) {
 		{PAWN, BLACK, "a7", []string{"a5", "a6"}},
 		{PAWN, BLACK, "h7", []string{"h5", "h6"}},
 		{PAWN, BLACK, "d6", []string{"d5"}},
+		{KNIGHT, WHITE, "b1", []string{"a3", "c3", "d2"}},
+		{KNIGHT, WHITE, "d5", []string{"e3", "c3", "f4", "b4", "f6", "e7", "c7", "b6"}},
 	}
 
 	for _, ex := range examples {

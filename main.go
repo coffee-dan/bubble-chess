@@ -386,7 +386,7 @@ func (c *Chess) inCheck(side int) bool {
 // Generate list of psuedo-legal moves for the current position
 func (c *Chess) generateFuture(side int) (future []move, err error) {
 	for idx, square := range c.pieceBoard {
-		if c.colorBoard[idx] == side^1 {
+		if c.colorBoard[idx] != side {
 			continue
 		}
 
@@ -421,6 +421,20 @@ func (c *Chess) generateFuture(side int) (future []move, err error) {
 				}
 				// right-capture
 				if dest := idx + 7; toFile(idx) != 7 && c.colorBoard[dest] == BLACK {
+					future = append(future, move{from: idx, to: dest})
+				}
+			}
+		} else {
+			for _, offset := range moveLists[square] {
+				dest, err := getMoveDestination(idx, offset)
+				if err != nil {
+					continue
+				}
+
+				if c.pieceBoard[dest] == EMPTY {
+					future = append(future, move{from: idx, to: dest})
+				} else if c.colorBoard[dest] == side^1 {
+					// capturing
 					future = append(future, move{from: idx, to: dest})
 				}
 			}
