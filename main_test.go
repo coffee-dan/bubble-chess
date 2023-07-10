@@ -175,7 +175,13 @@ func TestGenerateFutureSinglePieces(t *testing.T) {
 		destinations []string
 	}{
 		{PAWN, WHITE, "e2", []string{"e3", "e4"}},
+		{PAWN, WHITE, "a2", []string{"a3", "a4"}},
+		{PAWN, WHITE, "h2", []string{"h3", "h4"}},
+		{PAWN, WHITE, "e3", []string{"e4"}},
 		{PAWN, BLACK, "d7", []string{"d5", "d6"}},
+		{PAWN, BLACK, "a7", []string{"a5", "a6"}},
+		{PAWN, BLACK, "h7", []string{"h5", "h6"}},
+		{PAWN, BLACK, "d6", []string{"d5"}},
 	}
 
 	for _, ex := range examples {

@@ -392,32 +392,37 @@ func (c *Chess) generateFuture(side int) (future []move, err error) {
 
 		if square == PAWN {
 			if side == WHITE {
-				if c.pieceBoard[idx-8] == EMPTY {
-					future = append(future, move{
-						from: idx, to: idx - 8,
-					})
+				if dest := idx - 8; c.pieceBoard[dest] == EMPTY {
+					future = append(future, move{from: idx, to: dest})
 				}
 				// twice forward move
-				if toRank(idx) == 6 {
-					future = append(future, move{
-						from: idx, to: idx - 16,
-					})
+				if dest := idx - 16; toRank(idx) == 1 && c.pieceBoard[dest] == EMPTY {
+					future = append(future, move{from: idx, to: dest})
 				}
-
 				// left-capture
-				if toFile(idx) != 0 && c.colorBoard[idx-9] == BLACK {
-					future = append(future, move{
-						from: idx, to: idx - 9,
-					})
+				if dest := idx - 9; toFile(idx) != 0 && c.colorBoard[dest] == BLACK {
+					future = append(future, move{from: idx, to: dest})
 				}
-
 				// right-capture
-				if toFile(idx) != 7 && c.colorBoard[idx-7] == BLACK {
-					future = append(future, move{
-						from: idx, to: idx - 7,
-					})
+				if dest := idx - 7; toFile(idx) != 7 && c.colorBoard[dest] == BLACK {
+					future = append(future, move{from: idx, to: dest})
+				}
+			} else {
+				if dest := idx + 8; c.pieceBoard[dest] == EMPTY {
+					future = append(future, move{from: idx, to: dest})
 				}
 
+				if dest := idx + 16; toRank(idx) == 6 && c.pieceBoard[dest] == EMPTY {
+					future = append(future, move{from: idx, to: dest})
+				}
+				// left-capture
+				if dest := idx + 9; toFile(idx) != 0 && c.colorBoard[dest] == BLACK {
+					future = append(future, move{from: idx, to: dest})
+				}
+				// right-capture
+				if dest := idx + 7; toFile(idx) != 7 && c.colorBoard[dest] == BLACK {
+					future = append(future, move{from: idx, to: dest})
+				}
 			}
 		}
 	}
@@ -555,7 +560,8 @@ func (c *Chess) viewBoard() string {
 			} else {
 				cellStyle.Add(pieceBlack)
 			}
-			pieceString = fmt.Sprintf("%c ", pieceRunes[pColor][pType])
+			// pieceString = fmt.Sprintf("%c ", pieceRunes[pColor][pType])
+			pieceString = fmt.Sprintf("%02d", i)
 		}
 
 		if isWhite {
