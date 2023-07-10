@@ -6,6 +6,20 @@ import (
 	"testing"
 )
 
+func TestToFile(t *testing.T) {
+	file := toFile(toIndex("e2"))
+
+	if file != 4 {
+		t.Errorf("Error, got: %d, want: 4", file)
+	}
+}
+func TestToRank(t *testing.T) {
+	rank := toRank(toIndex("e2"))
+
+	if rank != 1 {
+		t.Errorf("Error, got: %d, want: 1", rank)
+	}
+}
 func TestParseMove(t *testing.T) {
 	chess := New()
 	result, err := chess.parseMove("e2e4")

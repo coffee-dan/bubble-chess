@@ -319,7 +319,7 @@ func toFile(boardIndex int) int {
 // Convert index to fore-to-aft columns, typically denoted by letters 1-8
 func toRank(boardIndex int) int {
 	// Equivalent to dividing by 8 and discarding remainder. But this is cooler B)
-	return boardIndex >> 3
+	return (63 - boardIndex) >> 3
 }
 
 func getMoveDestination(currentIndex int, moveOffset int) (dest int, err error) {
