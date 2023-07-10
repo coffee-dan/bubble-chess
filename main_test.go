@@ -6,6 +6,60 @@ import (
 	"testing"
 )
 
+var sideNames = []string{
+	"White", "Black",
+}
+
+var pieceNames = []string{
+	"Pawn", "Knight", "Bishop", "Rook", "Queen", "King",
+}
+
+var blankBoard = [64]int{
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+}
+
+func (c *Chess) setPiece(piece int, color int, coord string) {
+	idx := toIndex(coord)
+	c.pieceBoard[idx] = piece
+	c.colorBoard[idx] = color
+}
+
+func (c *Chess) setPlayer(side int) {
+	c.side = side
+	c.xside = side ^ 1
+	c.playerSide = side
+}
+
+func equal(slice1 []move, slice2 []move) bool {
+	if len(slice1) != len(slice2) {
+		return false
+	}
+
+	sort.Sort(byTo(slice1))
+	sort.Sort(byTo(slice2))
+
+	for i, mov := range slice1 {
+		if mov != slice2[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func NewBlank() *Chess {
+	c := New()
+	c.pieceBoard = blankBoard
+	c.colorBoard = blankBoard
+	return c
+}
+
 func TestToFile(t *testing.T) {
 	file := toFile(toIndex("e2"))
 
@@ -13,6 +67,7 @@ func TestToFile(t *testing.T) {
 		t.Errorf("Error, got: %d, want: 4", file)
 	}
 }
+
 func TestToRank(t *testing.T) {
 	rank := toRank(toIndex("e2"))
 
@@ -20,6 +75,7 @@ func TestToRank(t *testing.T) {
 		t.Errorf("Error, got: %d, want: 1", rank)
 	}
 }
+
 func TestParseMove(t *testing.T) {
 	chess := New()
 	result, err := chess.parseMove("e2e4")
@@ -33,7 +89,6 @@ func TestParseMove(t *testing.T) {
 	if result != want {
 		t.Errorf("Error, got: %+v, want: %+v", result, want)
 	}
-
 }
 
 func TestGetMoveDestination(t *testing.T) {
@@ -66,6 +121,7 @@ func TestGetMoveDestination(t *testing.T) {
 		})
 	}
 }
+
 func TestUnderAttack(t *testing.T) {
 	chess := New()
 	chess.pieceBoard = [64]int{
@@ -111,60 +167,6 @@ func TestMakeMove(t *testing.T) {
 	if pieceAtE1 == EMPTY {
 		t.Errorf("Error, king has gone away")
 	}
-}
-
-func (c *Chess) setPiece(piece int, color int, coord string) {
-	idx := toIndex(coord)
-	c.pieceBoard[idx] = piece
-	c.colorBoard[idx] = color
-}
-
-func (c *Chess) setPlayer(side int) {
-	c.side = side
-	c.xside = side ^ 1
-	c.playerSide = side
-}
-
-func equal(slice1 []move, slice2 []move) bool {
-	if len(slice1) != len(slice2) {
-		return false
-	}
-
-	sort.Sort(byTo(slice1))
-	sort.Sort(byTo(slice2))
-
-	for i, mov := range slice1 {
-		if mov != slice2[i] {
-			return false
-		}
-	}
-	return true
-}
-
-var blankBoard = [64]int{
-	6, 6, 6, 6, 6, 6, 6, 6,
-	6, 6, 6, 6, 6, 6, 6, 6,
-	6, 6, 6, 6, 6, 6, 6, 6,
-	6, 6, 6, 6, 6, 6, 6, 6,
-	6, 6, 6, 6, 6, 6, 6, 6,
-	6, 6, 6, 6, 6, 6, 6, 6,
-	6, 6, 6, 6, 6, 6, 6, 6,
-	6, 6, 6, 6, 6, 6, 6, 6,
-}
-
-func NewBlank() *Chess {
-	c := New()
-	c.pieceBoard = blankBoard
-	c.colorBoard = blankBoard
-	return c
-}
-
-var sideNames = []string{
-	"White", "Black",
-}
-
-var pieceNames = []string{
-	"Pawn", "Knight", "Bishop", "Rook", "Queen", "King",
 }
 
 func TestGenerateFutureSinglePieces(t *testing.T) {
