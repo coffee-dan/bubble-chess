@@ -560,8 +560,7 @@ func (c *Chess) viewBoard() string {
 			} else {
 				cellStyle.Add(pieceBlack)
 			}
-			// pieceString = fmt.Sprintf("%c ", pieceRunes[pColor][pType])
-			pieceString = fmt.Sprintf("%02d", i)
+			pieceString = fmt.Sprintf("%c ", pieceRunes[pColor][pType])
 		}
 
 		if isWhite {
