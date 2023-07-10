@@ -53,11 +53,40 @@ func equal(slice1 []move, slice2 []move) bool {
 	return true
 }
 
+// is []move small a subset of []move large
+// assumption: no duplicates
+func isSubset(small, large []move) bool {
+	seen := make(map[move]bool)
+	for _, mov := range large {
+		seen[mov] = true
+	}
+
+	for _, mov := range small {
+		if !seen[mov] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func NewBlank() *Chess {
 	c := New()
 	c.pieceBoard = blankBoard
 	c.colorBoard = blankBoard
 	return c
+}
+
+func TestIsSubset(t *testing.T) {
+	small := []move{{from: 52, to: 44}}
+	large := []move{
+		{from: 52, to: 44},
+		{from: 52, to: 36},
+	}
+
+	if !isSubset(small, large) {
+		t.Error("Error, got: false, want: true")
+	}
 }
 
 func TestToFile(t *testing.T) {
