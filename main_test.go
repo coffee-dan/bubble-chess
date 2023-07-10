@@ -215,6 +215,12 @@ func TestGenerateFutureSinglePieces(t *testing.T) {
 		{PAWN, BLACK, "d6", []string{"d5"}},
 		{KNIGHT, WHITE, "b1", []string{"a3", "c3", "d2"}},
 		{KNIGHT, WHITE, "d5", []string{"e3", "c3", "f4", "b4", "f6", "e7", "c7", "b6"}},
+		{BISHOP, WHITE, "c1", []string{"b2", "a3", "d2", "e3", "f4", "g5", "h6"}},
+		{ROOK, WHITE, "a1", []string{"b1", "c1", "d1", "e1", "f1", "g1", "h1", "a2", "a3", "a4", "a5", "a6", "a7", "a8"}},
+		{QUEEN, WHITE, "d1", []string{
+			"c1", "b1", "a1", "c2", "b3", "a4", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "e2", "f3", "g4", "h5", "e1", "f1", "g1", "h1",
+		}},
+		{KING, WHITE, "e1", []string{"d1", "d2", "e2", "f2", "f1"}},
 	}
 
 	for _, ex := range examples {

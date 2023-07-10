@@ -425,17 +425,25 @@ func (c *Chess) generateFuture(side int) (future []move, err error) {
 				}
 			}
 		} else {
-			for _, offset := range moveLists[square] {
-				dest, err := getMoveDestination(idx, offset)
-				if err != nil {
-					continue
-				}
+			for _, unitOffset := range moveLists[square] {
+				for offset := unitOffset; ; {
+					dest, err := getMoveDestination(idx, offset)
+					if err != nil {
+						break
+					}
 
-				if c.pieceBoard[dest] == EMPTY {
-					future = append(future, move{from: idx, to: dest})
-				} else if c.colorBoard[dest] == side^1 {
-					// capturing
-					future = append(future, move{from: idx, to: dest})
+					if c.pieceBoard[dest] == EMPTY {
+						future = append(future, move{from: idx, to: dest})
+					} else if c.colorBoard[dest] == side^1 {
+						// capturing
+						future = append(future, move{from: idx, to: dest})
+					}
+
+					if canSlide[square] {
+						offset += unitOffset
+					} else {
+						break
+					}
 				}
 			}
 		}
