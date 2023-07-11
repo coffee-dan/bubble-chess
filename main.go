@@ -216,40 +216,44 @@ func (c *Chess) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// validate move syntax (proper form)
 			nextMove, parseErr := c.parseMove(input)
+			if parseErr != nil {
+				errors = append(errors, parseErr)
+			}
+
+			// generate all possible moves for _this_ side
+			future, futureErr := c.generateFuture(c.side)
+			if futureErr == nil {
+				c.future = future
+			}
+
+			// check parsed move against future
+			isPsuedoLegal := c.validateMove(nextMove)
+			if !isPsuedoLegal {
+				errors = append(errors, ErrInvalidMove)
+			}
 
 			var validation string
-			if parseErr != nil {
+			if len(errors) > 0 {
 				validation = " (invalid)"
-				errors = append(errors, parseErr)
 			}
 			senderString := fmt.Sprintf("  %s%s: ", whoami, validation)
 			c.pastMoves = append(c.pastMoves, senderStyle.Render(senderString)+input)
 
 			if len(errors) == 0 {
-				// c.pastMoves = append(c.pastMoves,
-				// 	fmt.Sprintf("parseMove: %d -> %d", nextMove.from, nextMove.to),
-				// )
+				_, moveErr := c.makeMove(nextMove)
 
-				res, moveErr := c.makeMove(nextMove)
-
-				c.pastMoves = append(c.pastMoves, fmt.Sprintf("makeMove: %t", res))
 				if moveErr != nil {
 					c.pastMoves = append(c.pastMoves, fmt.Sprintf("%e", moveErr))
 				}
 
-				// validate semantics (does the player have those pieces)
-				// validate move pragmatics (is that move legal?)
-				// 		- is _this_ side in check?
-				// 		-
-				// - do the move
 				// - prompt for promotion
 				// - send error message
 				// switch turns
 
-				c.viewport.SetContent(strings.Join(c.pastMoves, "\n"))
-				c.nextMoveField.Reset()
-				c.viewport.GotoBottom()
 			}
+			c.viewport.SetContent(strings.Join(c.pastMoves, "\n"))
+			c.nextMoveField.Reset()
+			c.viewport.GotoBottom()
 		}
 	case errMsg:
 		c.err = msg
@@ -446,6 +450,16 @@ func (c *Chess) generateFuture(side int) (future []move, err error) {
 					}
 				}
 			}
+		}
+	}
+	return
+}
+
+func (c *Chess) validateMove(mov move) (res bool) {
+	res = false
+	for _, m := range c.future {
+		if m == mov {
+			res = true
 		}
 	}
 	return
