@@ -107,16 +107,25 @@ func TestToRank(t *testing.T) {
 
 func TestParseMove(t *testing.T) {
 	chess := New()
-	result, err := chess.parseMove("e2e4")
-	if err != nil {
-		t.Errorf("Unexpected error %e", err)
+	var examples = []struct {
+		input string
+		eMove move
+	}{
+		{"e2e4", move{from: 52, to: 36}},
+		{"d8e8", move{from: 3, to: 4}},
 	}
-	want := move{
-		from: 52,
-		to:   36,
-	}
-	if result != want {
-		t.Errorf("Error, got: %+v, want: %+v", result, want)
+
+	for _, ex := range examples {
+		tName := fmt.Sprintf("%s is interpreted as %v", ex.input, ex.eMove)
+		t.Run(tName, func(t *testing.T) {
+			aMove, err := chess.parseMove(ex.input)
+			if err != nil {
+				t.Errorf("Unexpected error %e", err)
+			}
+			if aMove != ex.eMove {
+				t.Errorf("Error, got: %+v, want: %+v", aMove, ex.eMove)
+			}
+		})
 	}
 }
 
@@ -209,6 +218,8 @@ func TestGenerateFutureSinglePieces(t *testing.T) {
 		{PAWN, WHITE, "a2", []string{"a3", "a4"}},
 		{PAWN, WHITE, "h2", []string{"h3", "h4"}},
 		{PAWN, WHITE, "e3", []string{"e4"}},
+		// this test only makes sense while promotion is not implemented
+		{PAWN, WHITE, "d8", []string{}},
 		{PAWN, BLACK, "d7", []string{"d5", "d6"}},
 		{PAWN, BLACK, "a7", []string{"a5", "a6"}},
 		{PAWN, BLACK, "h7", []string{"h5", "h6"}},
