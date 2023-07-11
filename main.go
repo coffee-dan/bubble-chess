@@ -395,37 +395,56 @@ func (c *Chess) generateFuture(side int) (future []move, err error) {
 		}
 
 		if square == PAWN {
+			var dest int
+			var err error
 			if side == WHITE {
-				if dest := idx - 8; c.pieceBoard[dest] == EMPTY {
+				dest, err = getMoveDestination(idx, -10)
+				if err == nil && c.pieceBoard[dest] == EMPTY {
 					future = append(future, move{from: idx, to: dest})
 				}
 				// twice forward move
-				if dest := idx - 16; toRank(idx) == 1 && c.pieceBoard[dest] == EMPTY {
-					future = append(future, move{from: idx, to: dest})
+				if toRank(idx) == 1 {
+					dest, err = getMoveDestination(idx, -20)
+					if err == nil && c.pieceBoard[dest] == EMPTY {
+						future = append(future, move{from: idx, to: dest})
+					}
 				}
-				// left-capture
-				if dest := idx - 9; toFile(idx) != 0 && c.colorBoard[dest] == BLACK {
-					future = append(future, move{from: idx, to: dest})
-				}
-				// right-capture
-				if dest := idx - 7; toFile(idx) != 7 && c.colorBoard[dest] == BLACK {
-					future = append(future, move{from: idx, to: dest})
+				if toFile(idx) != 0 {
+					// left-capture
+					dest, err = getMoveDestination(idx, -11)
+					if err == nil && c.colorBoard[dest] == BLACK {
+						future = append(future, move{from: idx, to: dest})
+					}
+				} else if toFile(idx) != 7 {
+					// right-capture
+					dest, err = getMoveDestination(idx, -9)
+					if err == nil && c.colorBoard[dest] == BLACK {
+						future = append(future, move{from: idx, to: dest})
+					}
 				}
 			} else {
-				if dest := idx + 8; c.pieceBoard[dest] == EMPTY {
+				dest, err = getMoveDestination(idx, +10)
+				if err == nil && c.pieceBoard[dest] == EMPTY {
 					future = append(future, move{from: idx, to: dest})
 				}
-
-				if dest := idx + 16; toRank(idx) == 6 && c.pieceBoard[dest] == EMPTY {
-					future = append(future, move{from: idx, to: dest})
+				if toRank(idx) == 6 {
+					dest, err = getMoveDestination(idx, +20)
+					if err == nil && c.pieceBoard[dest] == EMPTY {
+						future = append(future, move{from: idx, to: dest})
+					}
 				}
-				// left-capture
-				if dest := idx + 9; toFile(idx) != 0 && c.colorBoard[dest] == BLACK {
-					future = append(future, move{from: idx, to: dest})
-				}
-				// right-capture
-				if dest := idx + 7; toFile(idx) != 7 && c.colorBoard[dest] == BLACK {
-					future = append(future, move{from: idx, to: dest})
+				if toFile(idx) != 0 {
+					// left-capture
+					dest, err = getMoveDestination(idx, +11)
+					if err == nil && c.colorBoard[dest] == BLACK {
+						future = append(future, move{from: idx, to: dest})
+					}
+				} else if toFile(idx) != 7 {
+					// right-capture
+					dest, err = getMoveDestination(idx, +9)
+					if err == nil && c.colorBoard[dest] == BLACK {
+						future = append(future, move{from: idx, to: dest})
+					}
 				}
 			}
 		} else {
