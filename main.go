@@ -72,6 +72,34 @@ var pieceRunes = map[int][]rune{
 	BLACK: {'p', 'n', 'b', 'r', 'q', 'k'},
 }
 
+// castling is represented as king movement plus a flag marking them as distinct
+var castlingMoves = map[int]map[string]move{
+	WHITE: {
+		"o-o": move{
+			from:     60, // E1
+			to:       62, // G1
+			castling: true,
+		},
+		"o-o-o": move{
+			from:     60, // E1
+			to:       58, // C1
+			castling: true,
+		},
+	},
+	BLACK: {
+		"o-o": move{
+			from:     4, // E8
+			to:       6, // G8
+			castling: true,
+		},
+		"o-o-o": move{
+			from:     4, // E8
+			to:       2, // C8
+			castling: true,
+		},
+	},
+}
+
 var (
 	ErrNotImplemented    = errors.New("feature not implemented (yet)")
 	ErrInvalidMove       = errors.New("this doesn't look like a move")
@@ -286,6 +314,13 @@ func (c *Chess) parseMove(userInput string) (mov move, err error) {
 		to   int
 		// index int32
 	)
+
+	userInput = strings.ReplaceAll(userInput, " ", "")
+
+	if userInput == "o-o" || userInput == "o-o-o" {
+		mov = castlingMoves[c.side][userInput]
+		return
+	}
 
 	moveRunes := []rune(userInput)
 
