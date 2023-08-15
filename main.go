@@ -9,12 +9,14 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/notnil/chess"
 )
 
 type Model struct {
 	viewport      viewport.Model
 	pastMoves     []string
 	nextMoveField textarea.Model
+	game          chess.Game
 	err           error
 }
 
@@ -47,6 +49,7 @@ Type your move and press Enter to confirm.`)
 		nextMoveField: ta,
 		pastMoves:     []string{},
 		viewport:      vp,
+		game:          *chess.NewGame(),
 		err:           nil,
 	}
 }
@@ -71,7 +74,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case tea.KeyEnter:
 			input := m.nextMoveField.Value()
-			m.pastMoves = append(m.pastMoves, "  You: "+input)
+			if err := m.game.MoveStr(input); err != nil {
+				m.pastMoves = append(m.pastMoves, "  You(invalid): "+input)
+				fmt.Print(err)
+				fmt.Print(m.game.Position().Board())
+			} else {
+				m.pastMoves = append(m.pastMoves, "  You: "+input)
+			}
+
 			m.viewport.SetContent(strings.Join(m.pastMoves, "\n"))
 			m.nextMoveField.Reset()
 			m.viewport.GotoBottom()
@@ -84,13 +94,64 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(tiCmd, vpCmd)
 }
 
+func RenderPiece(p chess.Piece) string {
+	return pieceUnicodes[int(p)]
+}
+
+var (
+	pieceUnicodes = []string{" ", "♔", "♕", "♖", "♗", "♘", "♙", "♚", "♛", "♜", "♝", "♞", "♟"}
+)
+
+func (m *Model) RenderBoard() string {
+	const numOfSquaresInRow = 8
+	b := m.game.Position().Board()
+
+	borderStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("#000000"))
+
+	var pieceString string
+	isWhite := true
+	squareBlack := lipgloss.NewStyle().
+		Background(lipgloss.Color("#FF00FF"))
+	squareWhite := lipgloss.NewStyle().
+		Background(lipgloss.Color("#00FFFF"))
+
+	s := "\n"
+	s += borderStyle.Render("  A B C D E F G H")
+	s += "\n"
+	for r := 7; r >= 0; r-- {
+		s += borderStyle.Render(chess.Rank(r).String() + " ")
+		for f := 0; f < numOfSquaresInRow; f++ {
+			p := b.Piece(chess.NewSquare(chess.File(f), chess.Rank(r)))
+
+			if p == chess.NoPiece {
+				pieceString = "  "
+			} else {
+				pieceString = p.String() + " "
+			}
+
+			if isWhite {
+				s += squareWhite.Render(pieceString)
+			} else {
+				s += squareBlack.Render(pieceString)
+			}
+
+			isWhite = !isWhite
+		}
+		isWhite = !isWhite
+		s += "\n"
+	}
+	return s
+}
+
 func (m *Model) View() string {
+	leftPane := m.RenderBoard()
 	rightPane := fmt.Sprintf(
 		"%s\n%s",
 		m.viewport.View(),
 		m.nextMoveField.View(),
 	)
-	mainContent := lipgloss.JoinHorizontal(lipgloss.Center, rightPane)
+	mainContent := lipgloss.JoinHorizontal(lipgloss.Center, leftPane, rightPane)
 
 	return fmt.Sprintf(
 		"\n\n\n%s\n\n%s",
