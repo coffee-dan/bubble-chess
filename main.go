@@ -76,8 +76,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			input := m.nextMoveField.Value()
 			if err := m.game.MoveStr(input); err != nil {
 				m.pastMoves = append(m.pastMoves, "  You(invalid): "+input)
-				fmt.Print(err)
-				fmt.Print(m.game.Position().Board())
 			} else {
 				m.pastMoves = append(m.pastMoves, "  You: "+input)
 			}
@@ -94,14 +92,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(tiCmd, vpCmd)
 }
 
-func RenderPiece(p chess.Piece) string {
-	return pieceUnicodes[int(p)]
-}
-
-var (
-	pieceUnicodes = []string{" ", "♔", "♕", "♖", "♗", "♘", "♙", "♚", "♛", "♜", "♝", "♞", "♟"}
-)
-
 func (m *Model) RenderBoard() string {
 	const numOfSquaresInRow = 8
 	b := m.game.Position().Board()
@@ -110,11 +100,12 @@ func (m *Model) RenderBoard() string {
 		Background(lipgloss.Color("#000000"))
 
 	var pieceString string
+	var pieceColorCode string
 	isWhite := true
 	squareBlack := lipgloss.NewStyle().
-		Background(lipgloss.Color("#FF00FF"))
+		Background(lipgloss.Color("#4DA5C9"))
 	squareWhite := lipgloss.NewStyle().
-		Background(lipgloss.Color("#00FFFF"))
+		Background(lipgloss.Color("#AF48B6"))
 
 	s := "\n"
 	s += borderStyle.Render("  A B C D E F G H")
@@ -126,14 +117,24 @@ func (m *Model) RenderBoard() string {
 
 			if p == chess.NoPiece {
 				pieceString = "  "
+				pieceColorCode = "#FFFFFF"
 			} else {
 				pieceString = p.String() + " "
+				if p.Color() == chess.White {
+					pieceColorCode = "#FFFFFF"
+				} else {
+					pieceColorCode = "#000000"
+				}
 			}
 
 			if isWhite {
-				s += squareWhite.Render(pieceString)
+				s += squareWhite.
+					Foreground(lipgloss.Color(pieceColorCode)).
+					Render(pieceString)
 			} else {
-				s += squareBlack.Render(pieceString)
+				s += squareBlack.
+					Foreground(lipgloss.Color(pieceColorCode)).
+					Render(pieceString)
 			}
 
 			isWhite = !isWhite
