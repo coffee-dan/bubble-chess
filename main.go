@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
-	"strings"
+	"regexp"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -13,12 +14,22 @@ import (
 )
 
 type Model struct {
-	viewport      viewport.Model
-	pastMoves     []string
+	header        viewport.Model
+	pastMovesView viewport.Model
+	validations   viewport.Model
 	nextMoveField textarea.Model
 	game          chess.Game
 	err           error
 }
+
+type GameMsg int
+
+func (gm GameMsg) Msg() {}
+
+const (
+	GameCPUTurn = iota
+	GameOver
+)
 
 type (
 	errMsg error
@@ -39,19 +50,32 @@ func New() *Model {
 	// Remove cusror line styling
 	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
 
-	vp := viewport.New(30, 5)
-	vp.SetContent(`Welcome to Bubble Chess!
-Type your move and press Enter to confirm.`)
+	hd := viewport.New(30, 2)
+	hd.SetContent(`White to move`)
+
+	pm := viewport.New(30, 5)
+	vs := viewport.New(30, 1)
 
 	ta.KeyMap.InsertNewline.SetEnabled(false)
 
 	return &Model{
 		nextMoveField: ta,
-		pastMoves:     []string{},
-		viewport:      vp,
+		header:        hd,
+		pastMovesView: pm,
+		validations:   vs,
 		game:          *chess.NewGame(),
 		err:           nil,
 	}
+}
+
+func (m *Model) gameNextStep() tea.Msg {
+	if m.game.Outcome() == chess.NoOutcome {
+		if m.game.Position().Turn() == chess.Black {
+			return GameMsg(GameCPUTurn)
+		}
+	}
+
+	return nil
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -65,7 +89,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 
 	m.nextMoveField, tiCmd = m.nextMoveField.Update(msg)
-	m.viewport, vpCmd = m.viewport.Update(msg)
+	m.pastMovesView, vpCmd = m.pastMovesView.Update(msg)
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -74,15 +98,26 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case tea.KeyEnter:
 			input := m.nextMoveField.Value()
+
 			if err := m.game.MoveStr(input); err != nil {
-				m.pastMoves = append(m.pastMoves, "  You(invalid): "+input)
+				m.validations.SetContent(err.Error())
 			} else {
-				m.pastMoves = append(m.pastMoves, "  You: "+input)
+				m.nextMoveField.Reset()
+				m.pastMovesView.SetContent(m.renderMoveList())
 			}
 
-			m.viewport.SetContent(strings.Join(m.pastMoves, "\n"))
-			m.nextMoveField.Reset()
-			m.viewport.GotoBottom()
+			return m, m.gameNextStep
+		}
+	case GameMsg:
+		switch msg {
+		case GameCPUTurn:
+			moves := m.game.ValidMoves()
+			move := moves[rand.Intn(len(moves))]
+			m.game.Move(move)
+
+			return m, m.gameNextStep
+		case GameOver:
+			return m, tea.Quit
 		}
 	case errMsg:
 		m.err = msg
@@ -108,7 +143,7 @@ func (m *Model) RenderBoard() string {
 		Background(lipgloss.Color("#AF48B6"))
 
 	s := "\n"
-	s += borderStyle.Render("  A B C D E F G H")
+	s += borderStyle.Render("  A B C D E F G H ")
 	s += "\n"
 	for r := 7; r >= 0; r-- {
 		s += borderStyle.Render(chess.Rank(r).String() + " ")
@@ -145,11 +180,21 @@ func (m *Model) RenderBoard() string {
 	return s
 }
 
+var moveListRegex *regexp.Regexp = regexp.MustCompile(" (\\d+\\.)")
+
+func (m *Model) renderMoveList() string {
+	return moveListRegex.ReplaceAllString(m.game.String(),
+		"\n$1",
+	)
+}
+
 func (m *Model) View() string {
 	leftPane := m.RenderBoard()
 	rightPane := fmt.Sprintf(
-		"%s\n%s",
-		m.viewport.View(),
+		"%s\n%s\n%s\n%s",
+		m.header.View(),
+		m.pastMovesView.View(),
+		m.validations.View(),
 		m.nextMoveField.View(),
 	)
 	mainContent := lipgloss.JoinHorizontal(lipgloss.Center, leftPane, rightPane)
