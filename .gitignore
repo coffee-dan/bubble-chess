@@ -24,4 +24,4 @@ go.work
 .vscode/
 
 # Delve
-__debug_bin
+__debug_bin*

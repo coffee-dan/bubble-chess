@@ -63,7 +63,7 @@ func New() *Model {
 		header:        hd,
 		pastMovesView: pm,
 		validations:   vs,
-		game:          *chess.NewGame(),
+		game:          *chess.NewGame(chess.UseNotation(chess.LongAlgebraicNotation{})),
 		err:           nil,
 	}
 }
