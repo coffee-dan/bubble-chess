@@ -195,7 +195,7 @@ func (m *Model) RenderBoard() string {
 	return s
 }
 
-var moveListRegex *regexp.Regexp = regexp.MustCompile(" (\\d+\\.)")
+var moveListRegex *regexp.Regexp = regexp.MustCompile(` (\d+\.)`)
 
 func (m *Model) renderMoveList() string {
 	return moveListRegex.ReplaceAllString(m.game.String(),
