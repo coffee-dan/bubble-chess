@@ -31,6 +31,13 @@ const (
 	GameOver
 )
 
+var (
+	white   lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#FFFFFF", ANSI256: "15", ANSI: "15"}
+	black   lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#000000", ANSI256: "0", ANSI: "0"}
+	magenta lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#AF48B6", ANSI256: "13", ANSI: "5"}
+	cyan    lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#4DA5C9", ANSI256: "14", ANSI: "6"}
+)
+
 type (
 	errMsg error
 )
@@ -114,6 +121,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			moves := m.game.ValidMoves()
 			move := moves[rand.Intn(len(moves))]
 			m.game.Move(move)
+			m.pastMovesView.SetContent(m.renderMoveList())
 
 			return m, m.gameNextStep
 		case GameOver:
@@ -132,18 +140,20 @@ func (m *Model) RenderBoard() string {
 	b := m.game.Position().Board()
 
 	borderStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("#000000"))
+		Background(black).
+		Foreground(white)
 
 	var pieceString string
-	var pieceColorCode string
+	var pieceColorCode lipgloss.CompleteColor
 	isWhite := true
 	squareBlack := lipgloss.NewStyle().
-		Background(lipgloss.Color("#4DA5C9"))
+		Background(cyan)
+
 	squareWhite := lipgloss.NewStyle().
-		Background(lipgloss.Color("#AF48B6"))
+		Background(magenta)
 
 	s := "\n"
-	s += borderStyle.Render("  A B C D E F G H ")
+	s += borderStyle.Render("  A B C D E F G H   ")
 	s += "\n"
 	for r := 7; r >= 0; r-- {
 		s += borderStyle.Render(chess.Rank(r).String() + " ")
@@ -152,31 +162,36 @@ func (m *Model) RenderBoard() string {
 
 			if p == chess.NoPiece {
 				pieceString = "  "
-				pieceColorCode = "#FFFFFF"
+				pieceColorCode = black
 			} else {
 				pieceString = p.String() + " "
 				if p.Color() == chess.White {
-					pieceColorCode = "#FFFFFF"
+					pieceColorCode = white
 				} else {
-					pieceColorCode = "#000000"
+					pieceColorCode = black
 				}
 			}
 
+			var sq string
+
 			if isWhite {
-				s += squareWhite.
-					Foreground(lipgloss.Color(pieceColorCode)).
+				sq = squareWhite.
+					Foreground(pieceColorCode).
 					Render(pieceString)
 			} else {
-				s += squareBlack.
-					Foreground(lipgloss.Color(pieceColorCode)).
+				sq = squareBlack.
+					Foreground(pieceColorCode).
 					Render(pieceString)
 			}
 
+			s += sq
 			isWhite = !isWhite
 		}
+		s += borderStyle.Render(" " + chess.Rank(r).String())
 		isWhite = !isWhite
 		s += "\n"
 	}
+	s += borderStyle.Render("   A B C D E F G H  ")
 	return s
 }
 
@@ -208,6 +223,17 @@ func (m *Model) View() string {
 
 func main() {
 	p := tea.NewProgram(New())
+
+	if len(os.Getenv("DEBUG")) > 0 {
+		f, err := tea.LogToFile("debug.log", "debug")
+		if err != nil {
+			fmt.Println("fatal:", err)
+			os.Exit(1)
+		}
+
+		defer f.Close()
+	}
+
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
