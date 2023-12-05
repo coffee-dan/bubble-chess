@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
+	"strconv"
+	"unicode"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -14,13 +16,16 @@ import (
 )
 
 type Model struct {
-	header        viewport.Model
-	pastMovesView viewport.Model
-	validations   viewport.Model
-	nextMoveField textarea.Model
-	game          chess.Game
-	err           error
+	header          viewport.Model
+	pastMovesView   viewport.Model
+	validations     viewport.Model
+	nextMoveField   textarea.Model
+	game            chess.Game
+	highlightsBoard bitboard
+	err             error
 }
+
+type bitboard uint64
 
 type GameMsg int
 
@@ -31,11 +36,19 @@ const (
 	GameOver
 )
 
+const (
+	NO_HIGHLIGHT = iota
+	HIGHLIGHT
+)
+
+// var columnHeaders []string = []string{"A", "B", "C", "D", "E", "F", "G", "H"}
+
 var (
 	white   lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#FFFFFF", ANSI256: "15", ANSI: "15"}
 	black   lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#000000", ANSI256: "0", ANSI: "0"}
 	magenta lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#AF48B6", ANSI256: "13", ANSI: "5"}
 	cyan    lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#4DA5C9", ANSI256: "14", ANSI: "6"}
+	red     lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#FF0000", ANSI256: "14", ANSI: "6"}
 )
 
 type (
@@ -66,12 +79,13 @@ func New() *Model {
 	ta.KeyMap.InsertNewline.SetEnabled(false)
 
 	return &Model{
-		nextMoveField: ta,
-		header:        hd,
-		pastMovesView: pm,
-		validations:   vs,
-		game:          *chess.NewGame(chess.UseNotation(chess.LongAlgebraicNotation{})),
-		err:           nil,
+		nextMoveField:   ta,
+		header:          hd,
+		pastMovesView:   pm,
+		validations:     vs,
+		game:            *chess.NewGame(chess.UseNotation(chess.LongAlgebraicNotation{})),
+		highlightsBoard: 0,
+		err:             nil,
 	}
 }
 
@@ -115,6 +129,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			return m, m.gameNextStep
 		}
+	default:
+		input := m.nextMoveField.Value()
+
+		if len(input) == 1 {
+			// log.Printf("yoooooo")
+			// log.Print(rune(input[0]))
+			// single rune highlight update
+			m.singleRuneHighlightUpdate(rune(input[0]))
+		} else {
+			// clear highlight
+			m.clearHighlights()
+		}
+
+		return m, nil
+
 	case GameMsg:
 		switch msg {
 		case GameCPUTurn:
@@ -135,6 +164,42 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(tiCmd, vpCmd)
 }
 
+func toColIndex(input rune) int {
+	lower := unicode.ToLower(input)
+	return int(lower - 'a')
+}
+
+func (m *Model) singleRuneHighlightUpdate(input rune) {
+	idx := toColIndex(input)
+	if idx >= 0 && idx < 8 {
+		var str string
+		for i := 0; i < 64; i++ {
+
+			if i%8 == idx {
+				str += "1"
+			} else {
+				str += "0"
+			}
+		}
+
+		bb, err := strconv.ParseUint(str, 2, 64)
+		if err != nil {
+			panic(err)
+		}
+		m.highlightsBoard = bitboard(bb)
+	} else {
+		m.clearHighlights()
+	}
+}
+
+func (m *Model) clearHighlights() {
+	m.highlightsBoard = 0
+}
+
+func (b bitboard) highlighted(sq chess.Square) bool {
+	return (uint64(b) >> uint64(63-sq) & 1) == 1
+}
+
 func (m *Model) RenderBoard() string {
 	const numOfSquaresInRow = 8
 	b := m.game.Position().Board()
@@ -152,18 +217,27 @@ func (m *Model) RenderBoard() string {
 	squareWhite := lipgloss.NewStyle().
 		Background(magenta)
 
+	squareHighlight := lipgloss.NewStyle().
+		Background(red)
+
 	s := "\n"
 	s += borderStyle.Render("  A B C D E F G H   ")
 	s += "\n"
 	for r := 7; r >= 0; r-- {
 		s += borderStyle.Render(chess.Rank(r).String() + " ")
 		for f := 0; f < numOfSquaresInRow; f++ {
-			p := b.Piece(chess.NewSquare(chess.File(f), chess.Rank(r)))
+
+			square := chess.NewSquare(chess.File(f), chess.Rank(r))
+
+			p := b.Piece(square)
+
+			// idx := r + (8*(8-f) - 8)
 
 			if p == chess.NoPiece {
 				pieceString = "  "
 				pieceColorCode = black
 			} else {
+				// pieceString = fmt.Sprintf("%2d", idx)
 				pieceString = p.String() + " "
 				if p.Color() == chess.White {
 					pieceColorCode = white
@@ -174,7 +248,13 @@ func (m *Model) RenderBoard() string {
 
 			var sq string
 
-			if isWhite {
+			if m.highlightsBoard.highlighted(square) {
+				// log.Print(m.highlightsBoard[idx])
+				sq = squareHighlight.
+					Foreground(pieceColorCode).
+					Render(pieceString)
+				// log.Printf("oh hai")
+			} else if isWhite {
 				sq = squareWhite.
 					Foreground(pieceColorCode).
 					Render(pieceString)
