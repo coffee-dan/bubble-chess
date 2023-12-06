@@ -41,14 +41,13 @@ const (
 	HIGHLIGHT
 )
 
-// var columnHeaders []string = []string{"A", "B", "C", "D", "E", "F", "G", "H"}
-
 var (
-	white   lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#FFFFFF", ANSI256: "15", ANSI: "15"}
-	black   lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#000000", ANSI256: "0", ANSI: "0"}
-	magenta lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#AF48B6", ANSI256: "13", ANSI: "5"}
-	cyan    lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#4DA5C9", ANSI256: "14", ANSI: "6"}
-	red     lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#FF0000", ANSI256: "14", ANSI: "6"}
+	white       lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#FFFFFF", ANSI256: "15", ANSI: "15"}
+	black       lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#000000", ANSI256: "0", ANSI: "0"}
+	magenta     lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#AF48B6", ANSI256: "13", ANSI: "5"}
+	cyan        lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#4DA5C9", ANSI256: "14", ANSI: "6"}
+	green       lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#0dbc79", ANSI256: "2", ANSI: "2"}
+	brightgreen lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#23d18b", ANSI256: "10", ANSI: "10"}
 )
 
 type (
@@ -133,12 +132,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		input := m.nextMoveField.Value()
 
 		if len(input) == 1 {
-			// log.Printf("yoooooo")
-			// log.Print(rune(input[0]))
-			// single rune highlight update
 			m.singleRuneHighlightUpdate(rune(input[0]))
 		} else {
-			// clear highlight
 			m.clearHighlights()
 		}
 
@@ -217,8 +212,11 @@ func (m *Model) RenderBoard() string {
 	squareWhite := lipgloss.NewStyle().
 		Background(magenta)
 
-	squareHighlight := lipgloss.NewStyle().
-		Background(red)
+	squareBlackHighlight := lipgloss.NewStyle().
+		Background(brightgreen)
+
+	squareWhiteHighlight := lipgloss.NewStyle().
+		Background(green)
 
 	s := "\n"
 	s += borderStyle.Render("  A B C D E F G H   ")
@@ -228,16 +226,12 @@ func (m *Model) RenderBoard() string {
 		for f := 0; f < numOfSquaresInRow; f++ {
 
 			square := chess.NewSquare(chess.File(f), chess.Rank(r))
-
 			p := b.Piece(square)
-
-			// idx := r + (8*(8-f) - 8)
 
 			if p == chess.NoPiece {
 				pieceString = "  "
 				pieceColorCode = black
 			} else {
-				// pieceString = fmt.Sprintf("%2d", idx)
 				pieceString = p.String() + " "
 				if p.Color() == chess.White {
 					pieceColorCode = white
@@ -246,23 +240,24 @@ func (m *Model) RenderBoard() string {
 				}
 			}
 
-			var sq string
+			var sqStyle lipgloss.Style
 
-			if m.highlightsBoard.highlighted(square) {
-				// log.Print(m.highlightsBoard[idx])
-				sq = squareHighlight.
-					Foreground(pieceColorCode).
-					Render(pieceString)
-				// log.Printf("oh hai")
-			} else if isWhite {
-				sq = squareWhite.
-					Foreground(pieceColorCode).
-					Render(pieceString)
+			if isWhite {
+				if m.highlightsBoard.highlighted(square) {
+					sqStyle = squareWhiteHighlight
+				} else {
+					sqStyle = squareWhite
+				}
 			} else {
-				sq = squareBlack.
-					Foreground(pieceColorCode).
-					Render(pieceString)
+				if m.highlightsBoard.highlighted(square) {
+					sqStyle = squareBlackHighlight
+				} else {
+					sqStyle = squareBlack
+				}
 			}
+			sq := sqStyle.
+				Foreground(pieceColorCode).
+				Render(pieceString)
 
 			s += sq
 			isWhite = !isWhite
