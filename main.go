@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"unicode"
 
@@ -48,6 +49,19 @@ var (
 	cyan        lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#4DA5C9", ANSI256: "14", ANSI: "6"}
 	green       lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#0dbc79", ANSI256: "2", ANSI: "2"}
 	brightgreen lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#23d18b", ANSI256: "10", ANSI: "10"}
+)
+
+var (
+	strToSquareMap = map[string]chess.Square{
+		"a1": chess.A1, "a2": chess.A2, "a3": chess.A3, "a4": chess.A4, "a5": chess.A5, "a6": chess.A6, "a7": chess.A7, "a8": chess.A8,
+		"b1": chess.B1, "b2": chess.B2, "b3": chess.B3, "b4": chess.B4, "b5": chess.B5, "b6": chess.B6, "b7": chess.B7, "b8": chess.B8,
+		"c1": chess.C1, "c2": chess.C2, "c3": chess.C3, "c4": chess.C4, "c5": chess.C5, "c6": chess.C6, "c7": chess.C7, "c8": chess.C8,
+		"d1": chess.D1, "d2": chess.D2, "d3": chess.D3, "d4": chess.D4, "d5": chess.D5, "d6": chess.D6, "d7": chess.D7, "d8": chess.D8,
+		"e1": chess.E1, "e2": chess.E2, "e3": chess.E3, "e4": chess.E4, "e5": chess.E5, "e6": chess.E6, "e7": chess.E7, "e8": chess.E8,
+		"f1": chess.F1, "f2": chess.F2, "f3": chess.F3, "f4": chess.F4, "f5": chess.F5, "f6": chess.F6, "f7": chess.F7, "f8": chess.F8,
+		"g1": chess.G1, "g2": chess.G2, "g3": chess.G3, "g4": chess.G4, "g5": chess.G5, "g6": chess.G6, "g7": chess.G7, "g8": chess.G8,
+		"h1": chess.H1, "h2": chess.H2, "h3": chess.H3, "h4": chess.H4, "h5": chess.H5, "h6": chess.H6, "h7": chess.H7, "h8": chess.H8,
+	}
 )
 
 type (
@@ -131,9 +145,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	default:
 		input := m.nextMoveField.Value()
 
-		if len(input) == 1 {
+		switch len(input) {
+		case 1:
 			m.singleRuneHighlightUpdate(rune(input[0]))
-		} else {
+		case 2:
+			m.doubleRuneHighlightUpdate(input)
+		default:
 			m.clearHighlights()
 		}
 
@@ -166,11 +183,56 @@ func toColIndex(input rune) int {
 
 func (m *Model) singleRuneHighlightUpdate(input rune) {
 	idx := toColIndex(input)
-	if idx >= 0 && idx < 8 {
+
+	file := chess.File(idx)
+	var origins []chess.Square
+
+	for _, m := range m.game.ValidMoves() {
+		if m.S1().File() == file {
+			origins = append(origins, m.S1())
+		}
+	}
+
+	if len(origins) > 0 && idx >= 0 && idx < 8 {
 		var str string
 		for i := 0; i < 64; i++ {
 
-			if i%8 == idx {
+			if slices.Contains(origins, chess.Square(i)) {
+				str += "1"
+			} else {
+				str += "0"
+			}
+		}
+
+		bb, err := strconv.ParseUint(str, 2, 64)
+		if err != nil {
+			panic(err)
+		}
+		m.highlightsBoard = bitboard(bb)
+	} else {
+		m.clearHighlights()
+	}
+}
+
+func toSquare(input string) chess.Square {
+	return strToSquareMap[input]
+}
+
+func (m *Model) doubleRuneHighlightUpdate(input string) {
+	sq := toSquare(input)
+
+	var destinations []chess.Square
+
+	for _, m := range m.game.ValidMoves() {
+		if m.S1() == sq {
+			destinations = append(destinations, m.S2())
+		}
+	}
+
+	if len(destinations) > 0 {
+		var str string
+		for i := 0; i < 64; i++ {
+			if slices.Contains(destinations, chess.Square(i)) {
 				str += "1"
 			} else {
 				str += "0"
