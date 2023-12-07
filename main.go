@@ -150,6 +150,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.singleRuneHighlightUpdate(rune(input[0]))
 		case 2:
 			m.doubleRuneHighlightUpdate(input)
+		case 3:
+			m.tripleRuneHighlightUpdate(input)
 		default:
 			m.clearHighlights()
 		}
@@ -187,9 +189,9 @@ func (m *Model) singleRuneHighlightUpdate(input rune) {
 	file := chess.File(idx)
 	var origins []chess.Square
 
-	for _, m := range m.game.ValidMoves() {
-		if m.S1().File() == file {
-			origins = append(origins, m.S1())
+	for _, mov := range m.game.ValidMoves() {
+		if mov.S1().File() == file {
+			origins = append(origins, mov.S1())
 		}
 	}
 
@@ -223,9 +225,47 @@ func (m *Model) doubleRuneHighlightUpdate(input string) {
 
 	var destinations []chess.Square
 
-	for _, m := range m.game.ValidMoves() {
-		if m.S1() == sq {
-			destinations = append(destinations, m.S2())
+	for _, mov := range m.game.ValidMoves() {
+		if mov.S1() == sq {
+			destinations = append(destinations, mov.S2())
+		}
+	}
+
+	if len(destinations) > 0 {
+		var str string
+		for i := 0; i < 64; i++ {
+			if slices.Contains(destinations, chess.Square(i)) {
+				str += "1"
+			} else {
+				str += "0"
+			}
+		}
+
+		bb, err := strconv.ParseUint(str, 2, 64)
+		if err != nil {
+			panic(err)
+		}
+		m.highlightsBoard = bitboard(bb)
+	} else {
+		m.clearHighlights()
+	}
+}
+
+func (m *Model) tripleRuneHighlightUpdate(input string) {
+	sq := toSquare(input[0:2])
+	idx := toColIndex(rune(input[2]))
+
+	if sq == chess.NoSquare || idx > 8 || idx < 0 {
+		return
+	}
+
+	file := chess.File(idx)
+
+	var destinations []chess.Square
+
+	for _, mov := range m.game.ValidMoves() {
+		if mov.S1() == sq && mov.S2().File() == file {
+			destinations = append(destinations, mov.S2())
 		}
 	}
 
