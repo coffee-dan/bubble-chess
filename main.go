@@ -64,6 +64,11 @@ var (
 	}
 )
 
+var (
+	pieceNameRegex = regexp.MustCompile("[KQRBN]")
+	fileNameRegex  = regexp.MustCompile("[abcdefgh]")
+)
+
 type (
 	errMsg error
 )
@@ -145,9 +150,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	default:
 		input := m.nextMoveField.Value()
 
+		// K for king, Q for queen, R for rook, B for bishop, and N for knight
+
 		switch len(input) {
 		case 1:
-			m.singleRuneHighlightUpdate(rune(input[0]))
+			if pieceNameRegex.MatchString(input) {
+				m.namedPieceHighlightUpdate(input)
+			} else if fileNameRegex.MatchString(input) {
+				m.singleRuneHighlightUpdate(rune(input[0]))
+			} else {
+				m.clearHighlights()
+			}
+
 		case 2:
 			m.doubleRuneHighlightUpdate(input)
 		case 3:
@@ -176,6 +190,92 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(tiCmd, vpCmd)
+}
+
+func toPieceType(s string) chess.PieceType {
+	switch s {
+	case "K":
+		return chess.King
+	case "Q":
+		return chess.Queen
+	case "R":
+		return chess.Rook
+	case "B":
+		return chess.Bishop
+	case "N":
+		return chess.Knight
+	case "P":
+		return chess.Pawn
+	}
+	return chess.NoPieceType
+}
+
+func toPiece(typ chess.PieceType, col chess.Color) chess.Piece {
+	switch col {
+	case chess.White:
+		switch typ {
+		case chess.King:
+			return chess.WhiteKing
+		case chess.Queen:
+			return chess.WhiteQueen
+		case chess.Bishop:
+			return chess.WhiteBishop
+		case chess.Knight:
+			return chess.WhiteKnight
+		case chess.Pawn:
+			return chess.WhitePawn
+		}
+	case chess.Black:
+		switch typ {
+		case chess.King:
+			return chess.BlackKing
+		case chess.Queen:
+			return chess.BlackQueen
+		case chess.Bishop:
+			return chess.BlackBishop
+		case chess.Knight:
+			return chess.BlackKnight
+		case chess.Pawn:
+			return chess.BlackPawn
+		}
+	}
+	return chess.NoPiece
+}
+
+func (m *Model) namedPieceHighlightUpdate(input string) {
+	pieceType := toPieceType(input)
+	if pieceType == chess.NoPieceType {
+		m.clearHighlights()
+		return
+	}
+	piece := toPiece(pieceType, chess.White)
+
+	var origins []chess.Square
+	for _, mov := range m.game.ValidMoves() {
+		if m.game.Position().Board().Piece(mov.S1()) == piece {
+			origins = append(origins, mov.S1())
+		}
+	}
+
+	if len(origins) > 0 {
+		var str string
+		for i := 0; i < 64; i++ {
+
+			if slices.Contains(origins, chess.Square(i)) {
+				str += "1"
+			} else {
+				str += "0"
+			}
+		}
+
+		bb, err := strconv.ParseUint(str, 2, 64)
+		if err != nil {
+			panic(err)
+		}
+		m.highlightsBoard = bitboard(bb)
+	} else {
+		m.clearHighlights()
+	}
 }
 
 func toColIndex(input rune) int {
@@ -256,6 +356,7 @@ func (m *Model) tripleRuneHighlightUpdate(input string) {
 	idx := toColIndex(rune(input[2]))
 
 	if sq == chess.NoSquare || idx > 8 || idx < 0 {
+		m.clearHighlights()
 		return
 	}
 
