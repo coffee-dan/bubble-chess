@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
-	"slices"
 	"strconv"
 	"unicode"
 
@@ -29,6 +28,15 @@ type Model struct {
 type bitboard uint64
 
 type GameMsg int
+
+func contains(squares []chess.Square, s chess.Square) bool {
+	for i := range squares {
+		if s == squares[i] {
+			return true
+		}
+	}
+	return false
+}
 
 func (gm GameMsg) Msg() {}
 
@@ -261,7 +269,7 @@ func (m *Model) namedPieceHighlightUpdate(input string) {
 		var str string
 		for i := 0; i < 64; i++ {
 
-			if slices.Contains(origins, chess.Square(i)) {
+			if contains(origins, chess.Square(i)) {
 				str += "1"
 			} else {
 				str += "0"
@@ -299,7 +307,7 @@ func (m *Model) singleRuneHighlightUpdate(input rune) {
 		var str string
 		for i := 0; i < 64; i++ {
 
-			if slices.Contains(origins, chess.Square(i)) {
+			if contains(origins, chess.Square(i)) {
 				str += "1"
 			} else {
 				str += "0"
@@ -334,7 +342,7 @@ func (m *Model) doubleRuneHighlightUpdate(input string) {
 	if len(destinations) > 0 {
 		var str string
 		for i := 0; i < 64; i++ {
-			if slices.Contains(destinations, chess.Square(i)) {
+			if contains(destinations, chess.Square(i)) {
 				str += "1"
 			} else {
 				str += "0"
@@ -373,7 +381,7 @@ func (m *Model) tripleRuneHighlightUpdate(input string) {
 	if len(destinations) > 0 {
 		var str string
 		for i := 0; i < 64; i++ {
-			if slices.Contains(destinations, chess.Square(i)) {
+			if contains(destinations, chess.Square(i)) {
 				str += "1"
 			} else {
 				str += "0"
