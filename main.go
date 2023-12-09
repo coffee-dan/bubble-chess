@@ -190,6 +190,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.doubleRuneHighlightUpdate(input)
 		case 3:
 			m.tripleRuneHighlightUpdate(input)
+		case 4:
+			m.fullMoveHighlightUpdate(input)
 		default:
 			m.clearHighlights()
 		}
@@ -385,6 +387,43 @@ func (m *Model) tripleRuneHighlightUpdate(input string) {
 
 	for _, mov := range m.game.ValidMoves() {
 		if mov.S1() == sq && mov.S2().File() == file {
+			destinations = append(destinations, mov.S2())
+		}
+	}
+
+	if len(destinations) > 0 {
+		var str string
+		for i := 0; i < 64; i++ {
+			if contains(destinations, chess.Square(i)) {
+				str += "1"
+			} else {
+				str += "0"
+			}
+		}
+
+		bb, err := strconv.ParseUint(str, 2, 64)
+		if err != nil {
+			panic(err)
+		}
+		m.highlightsBoard = bitboard(bb)
+	} else {
+		m.clearHighlights()
+	}
+}
+
+func (m *Model) fullMoveHighlightUpdate(input string) {
+	sq1 := toSquare(input[0:2])
+	sq2 := toSquare(input[2:4])
+
+	if sq1 == chess.NoSquare || sq2 == chess.NoSquare {
+		m.clearHighlights()
+		return
+	}
+
+	var destinations []chess.Square
+
+	for _, mov := range m.game.ValidMoves() {
+		if mov.S1() == sq1 && mov.S2() == sq2 {
 			destinations = append(destinations, mov.S2())
 		}
 	}
