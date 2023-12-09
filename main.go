@@ -160,16 +160,32 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// K for king, Q for queen, R for rook, B for bishop, and N for knight
 
+		var piece chess.Piece
+		if len(input) >= 1 && pieceNameRegex.MatchString(input[0:1]) {
+			pieceType := toPieceType(input[0:1])
+			if pieceType == chess.NoPieceType {
+				m.clearHighlights()
+				return m, nil
+			}
+			piece = toPiece(pieceType, chess.White)
+			input = input[1:]
+		} else {
+			piece = chess.WhitePawn
+		}
+
 		switch len(input) {
+		case 0:
+			if piece == chess.WhitePawn {
+				m.clearHighlights()
+			} else {
+				m.namedPieceHighlightUpdate(piece)
+			}
 		case 1:
-			if pieceNameRegex.MatchString(input) {
-				m.namedPieceHighlightUpdate(input)
-			} else if fileNameRegex.MatchString(input) {
-				m.singleRuneHighlightUpdate(rune(input[0]))
+			if fileNameRegex.MatchString(input) {
+				m.singleRuneHighlightUpdate(piece, rune(input[0]))
 			} else {
 				m.clearHighlights()
 			}
-
 		case 2:
 			m.doubleRuneHighlightUpdate(input)
 		case 3:
@@ -250,14 +266,7 @@ func toPiece(typ chess.PieceType, col chess.Color) chess.Piece {
 	return chess.NoPiece
 }
 
-func (m *Model) namedPieceHighlightUpdate(input string) {
-	pieceType := toPieceType(input)
-	if pieceType == chess.NoPieceType {
-		m.clearHighlights()
-		return
-	}
-	piece := toPiece(pieceType, chess.White)
-
+func (m *Model) namedPieceHighlightUpdate(piece chess.Piece) {
 	var origins []chess.Square
 	for _, mov := range m.game.ValidMoves() {
 		if m.game.Position().Board().Piece(mov.S1()) == piece {
@@ -291,15 +300,17 @@ func toColIndex(input rune) int {
 	return int(lower - 'a')
 }
 
-func (m *Model) singleRuneHighlightUpdate(input rune) {
+func (m *Model) singleRuneHighlightUpdate(piece chess.Piece, input rune) {
 	idx := toColIndex(input)
 
 	file := chess.File(idx)
 	var origins []chess.Square
 
 	for _, mov := range m.game.ValidMoves() {
-		if mov.S1().File() == file {
-			origins = append(origins, mov.S1())
+		s1 := mov.S1()
+		if s1.File() == file &&
+			m.game.Position().Board().Piece(s1) == piece {
+			origins = append(origins, s1)
 		}
 	}
 
