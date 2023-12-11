@@ -276,25 +276,27 @@ func (m *Model) namedPieceHighlightUpdate(piece chess.Piece) {
 		}
 	}
 
-	if len(origins) > 0 {
-		var str string
-		for i := 0; i < 64; i++ {
+	m.highlightsBoard = toBitboard(origins)
+}
 
-			if contains(origins, chess.Square(i)) {
-				str += "1"
-			} else {
-				str += "0"
-			}
-		}
-
-		bb, err := strconv.ParseUint(str, 2, 64)
-		if err != nil {
-			panic(err)
-		}
-		m.highlightsBoard = bitboard(bb)
-	} else {
-		m.clearHighlights()
+func toBitboard(squares []chess.Square) bitboard {
+	if len(squares) == 0 {
+		return 0
 	}
+
+	var str string
+	for i := 0; i < 64; i++ {
+		if contains(squares, chess.Square(i)) {
+			str += "1"
+		} else {
+			str += "0"
+		}
+	}
+	bb, err := strconv.ParseUint(str, 2, 64)
+	if err != nil {
+		panic(err)
+	}
+	return bitboard(bb)
 }
 
 func toColIndex(input rune) int {
@@ -316,25 +318,7 @@ func (m *Model) singleRuneHighlightUpdate(piece chess.Piece, input rune) {
 		}
 	}
 
-	if len(origins) > 0 && idx >= 0 && idx < 8 {
-		var str string
-		for i := 0; i < 64; i++ {
-
-			if contains(origins, chess.Square(i)) {
-				str += "1"
-			} else {
-				str += "0"
-			}
-		}
-
-		bb, err := strconv.ParseUint(str, 2, 64)
-		if err != nil {
-			panic(err)
-		}
-		m.highlightsBoard = bitboard(bb)
-	} else {
-		m.clearHighlights()
-	}
+	m.highlightsBoard = toBitboard(origins)
 }
 
 func toSquare(input string) chess.Square {
@@ -352,24 +336,7 @@ func (m *Model) doubleRuneHighlightUpdate(input string) {
 		}
 	}
 
-	if len(destinations) > 0 {
-		var str string
-		for i := 0; i < 64; i++ {
-			if contains(destinations, chess.Square(i)) {
-				str += "1"
-			} else {
-				str += "0"
-			}
-		}
-
-		bb, err := strconv.ParseUint(str, 2, 64)
-		if err != nil {
-			panic(err)
-		}
-		m.highlightsBoard = bitboard(bb)
-	} else {
-		m.clearHighlights()
-	}
+	m.highlightsBoard = toBitboard(destinations)
 }
 
 func (m *Model) tripleRuneHighlightUpdate(input string) {
@@ -391,24 +358,7 @@ func (m *Model) tripleRuneHighlightUpdate(input string) {
 		}
 	}
 
-	if len(destinations) > 0 {
-		var str string
-		for i := 0; i < 64; i++ {
-			if contains(destinations, chess.Square(i)) {
-				str += "1"
-			} else {
-				str += "0"
-			}
-		}
-
-		bb, err := strconv.ParseUint(str, 2, 64)
-		if err != nil {
-			panic(err)
-		}
-		m.highlightsBoard = bitboard(bb)
-	} else {
-		m.clearHighlights()
-	}
+	m.highlightsBoard = toBitboard(destinations)
 }
 
 func (m *Model) fullMoveHighlightUpdate(input string) {
@@ -428,24 +378,7 @@ func (m *Model) fullMoveHighlightUpdate(input string) {
 		}
 	}
 
-	if len(destinations) > 0 {
-		var str string
-		for i := 0; i < 64; i++ {
-			if contains(destinations, chess.Square(i)) {
-				str += "1"
-			} else {
-				str += "0"
-			}
-		}
-
-		bb, err := strconv.ParseUint(str, 2, 64)
-		if err != nil {
-			panic(err)
-		}
-		m.highlightsBoard = bitboard(bb)
-	} else {
-		m.clearHighlights()
-	}
+	m.highlightsBoard = toBitboard(destinations)
 }
 
 func (m *Model) clearHighlights() {
