@@ -536,11 +536,11 @@ func (m *Model) RenderBoard() string {
 			s += sq
 			isWhite = !isWhite
 		}
-		s += borderStyle.Render(" " + chess.Rank(r).String())
+		s += borderStyle.Render(chess.Rank(r).String() + " ")
 		isWhite = !isWhite
 		s += "\n"
 	}
-	s += borderStyle.Render("   A B C D E F G H  ")
+	s += borderStyle.Render("  A B C D E F G H   ")
 	return s
 }
 
