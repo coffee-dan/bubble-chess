@@ -22,6 +22,8 @@ type Model struct {
 	nextMoveField   textarea.Model
 	game            chess.Game
 	highlightsBoard bitboard
+	guessList       []chess.Move
+	guessMenu       viewport.Model
 	err             error
 }
 
@@ -71,10 +73,22 @@ var (
 		"h1": chess.H1, "h2": chess.H2, "h3": chess.H3, "h4": chess.H4, "h5": chess.H5, "h6": chess.H6, "h7": chess.H7, "h8": chess.H8,
 	}
 )
-
 var (
-	pieceNameRegex = regexp.MustCompile("[KQRBN]")
-	fileNameRegex  = regexp.MustCompile("[abcdefgh]")
+	strToFileMap = map[string]chess.File{
+		"a": chess.FileA,
+		"b": chess.FileB,
+		"c": chess.FileC,
+		"d": chess.FileD,
+		"e": chess.FileE,
+		"f": chess.FileF,
+		"g": chess.FileG,
+		"h": chess.FileH,
+	}
+)
+var (
+	pieceNameRegex  = regexp.MustCompile("[KQRBN]")
+	fileNameRegex   = regexp.MustCompile("[abcdefgh]")
+	squareNameRegex = regexp.MustCompile("[abcdefgh][12345678]")
 )
 
 type (
@@ -86,23 +100,19 @@ func New() *Model {
 	ta.ShowLineNumbers = false
 	ta.Placeholder = "Your move."
 	ta.Focus()
-
 	ta.Prompt = "> "
 	ta.CharLimit = 10
-
 	ta.SetWidth(30)
 	ta.SetHeight(1)
-
-	// Remove cusror line styling
 	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
+	ta.KeyMap.InsertNewline.SetEnabled(false)
 
 	hd := viewport.New(30, 2)
 	hd.SetContent(`White to move`)
 
 	pm := viewport.New(30, 5)
 	vs := viewport.New(30, 1)
-
-	ta.KeyMap.InsertNewline.SetEnabled(false)
+	gb := viewport.New(60, 1)
 
 	return &Model{
 		nextMoveField:   ta,
@@ -111,6 +121,8 @@ func New() *Model {
 		validations:     vs,
 		game:            *chess.NewGame(chess.UseNotation(chess.LongAlgebraicNotation{})),
 		highlightsBoard: 0,
+		guessList:       []chess.Move{},
+		guessMenu:       gb,
 		err:             nil,
 	}
 }
@@ -157,6 +169,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	default:
 		input := m.nextMoveField.Value()
+
+		m.guessList = m.generateGuessList(input)
+		m.guessMenu.SetContent(m.renderGuessList())
 
 		// K for king, Q for queen, R for rook, B for bishop, and N for knight
 
@@ -304,6 +319,67 @@ func toColIndex(input rune) int {
 	return int(lower - 'a')
 }
 
+func min(a int, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func substr(str string, first int, last int) string {
+	actualLast := min(len(str), last)
+	return str[first:actualLast]
+}
+
+func (m *Model) generateGuessList(input string) []chess.Move {
+	var moveList []chess.Move = []chess.Move{}
+	if len(input) < 1 {
+		return moveList
+	}
+
+	var piece chess.Piece = chess.NoPiece
+	if oneRune := input[0:1]; pieceNameRegex.MatchString(oneRune) {
+		pieceType := toPieceType(oneRune)
+		if pieceType != chess.NoPieceType {
+			input = input[1:]
+			piece = toPiece(pieceType, chess.White)
+		}
+	}
+
+	twoRunes := substr(input, 0, 2)
+
+	var haveSquare1 bool = len(twoRunes) == 2
+	var s1 chess.Square = chess.NoSquare
+	var haveFile1 bool = len(twoRunes) == 1
+	var file1 chess.File = chess.FileA
+
+	if haveSquare1 && squareNameRegex.MatchString(twoRunes) {
+		s1 = toSquare(twoRunes)
+	} else {
+		file1 = toFile(input[0:])
+	}
+
+	board := m.game.Position().Board()
+	for _, mov := range m.game.ValidMoves() {
+		movS1 := mov.S1()
+		if piece != chess.NoPiece && board.Piece(movS1) != piece {
+			continue
+		}
+
+		if haveSquare1 && movS1 != s1 {
+			continue
+		}
+
+		if haveFile1 && movS1.File() != file1 {
+			continue
+		}
+
+		moveList = append(moveList, *mov)
+	}
+
+	return moveList
+}
+
 func (m *Model) singleRuneHighlightUpdate(piece chess.Piece, input rune) {
 	idx := toColIndex(input)
 
@@ -319,6 +395,10 @@ func (m *Model) singleRuneHighlightUpdate(piece chess.Piece, input rune) {
 	}
 
 	m.highlightsBoard = toBitboard(origins)
+}
+
+func toFile(input string) chess.File {
+	return strToFileMap[input]
 }
 
 func toSquare(input string) chess.Square {
@@ -472,6 +552,14 @@ func (m *Model) renderMoveList() string {
 	)
 }
 
+func (m *Model) renderGuessList() string {
+	var str string = ""
+	for _, mov := range m.guessList {
+		str = str + mov.String() + " "
+	}
+	return str
+}
+
 func (m *Model) View() string {
 	leftPane := m.RenderBoard()
 	rightPane := fmt.Sprintf(
@@ -483,9 +571,12 @@ func (m *Model) View() string {
 	)
 	mainContent := lipgloss.JoinHorizontal(lipgloss.Center, leftPane, rightPane)
 
+	footer := m.guessMenu.View()
+
 	return fmt.Sprintf(
-		"\n\n\n%s\n\n%s",
+		"\n\n\n%s\n\n%s\n%s",
 		mainContent,
+		footer,
 		"Press esc to quit.\n",
 	)
 }
