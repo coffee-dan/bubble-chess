@@ -24,6 +24,7 @@ type Model struct {
 	highlightsBoard bitboard
 	guessList       []chess.Move
 	guessMenu       viewport.Model
+	guessCursor     int
 	err             error
 }
 
@@ -50,6 +51,10 @@ const (
 const (
 	NO_HIGHLIGHT = iota
 	HIGHLIGHT
+)
+
+const (
+	NO_GUESS = -1 << iota
 )
 
 var (
@@ -123,6 +128,7 @@ func New() *Model {
 		highlightsBoard: 0,
 		guessList:       []chess.Move{},
 		guessMenu:       gb,
+		guessCursor:     NO_GUESS,
 		err:             nil,
 	}
 }
@@ -166,11 +172,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			return m, m.gameNextStep
+		case tea.KeyTab:
+			if guessLen := len(m.guessList); guessLen > 1 {
+				if m.guessCursor < guessLen-1 {
+					m.guessCursor += 1
+				} else {
+					m.guessCursor = 0
+				}
+				m.nextMoveField.SetValue(m.guessList[m.guessCursor].String())
+			}
+
 		}
 	default:
 		input := m.nextMoveField.Value()
 
 		m.guessList = m.generateGuessList(input)
+		m.guessCursor = NO_GUESS
 		m.guessMenu.SetContent(m.renderGuessList())
 
 		// K for king, Q for queen, R for rook, B for bishop, and N for knight
