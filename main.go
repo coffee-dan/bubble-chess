@@ -184,42 +184,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		}
 	default:
-		input := m.nextMoveField.Value()
+		var input string = m.nextMoveField.Value()
 
 		m.guessList = m.generateGuessList(input)
 		m.guessCursor = NO_GUESS
 		m.guessMenu.SetContent(m.renderGuessList())
 
-		m.clearHighlights()
-
-		var piece chess.Piece
-		if len(input) >= 1 && pieceNameRegex.MatchString(input[0:1]) {
-			pieceType := toPieceType(input[0:1])
-			if pieceType == chess.NoPieceType {
-				return m, nil
-			}
-			piece = toPiece(pieceType, chess.White)
-			input = input[1:]
-		} else {
-			piece = chess.WhitePawn
-		}
-
-		switch len(input) {
-		case 0:
-			if piece != chess.WhitePawn {
-				m.highlightsBoard = m.namedPieceHighlightUpdate(piece)
-			}
-		case 1:
-			if fileNameRegex.MatchString(input) {
-				m.highlightsBoard = m.singleRuneHighlightUpdate(piece, rune(input[0]))
-			}
-		case 2:
-			m.highlightsBoard = m.doubleRuneHighlightUpdate(input)
-		case 3:
-			m.highlightsBoard = m.tripleRuneHighlightUpdate(input)
-		case 4:
-			m.highlightsBoard = m.fullMoveHighlightUpdate(input)
-		}
+		m.highlightsBoard = m.generateHighlights(input)
 
 		return m, nil
 
@@ -469,8 +440,37 @@ func (m *Model) fullMoveHighlightUpdate(input string) bitboard {
 	return toBitboard(destinations)
 }
 
-func (m *Model) clearHighlights() {
-	m.highlightsBoard = 0
+func (m *Model) generateHighlights(input string) (newHighlights bitboard) {
+	newHighlights = 0
+	var piece chess.Piece
+	if len(input) >= 1 && pieceNameRegex.MatchString(input[0:1]) {
+		pieceType := toPieceType(input[0:1])
+		if pieceType == chess.NoPieceType {
+			return
+		}
+		piece = toPiece(pieceType, chess.White)
+		input = input[1:]
+	} else {
+		piece = chess.WhitePawn
+	}
+
+	switch len(input) {
+	case 0:
+		if piece != chess.WhitePawn {
+			newHighlights = m.namedPieceHighlightUpdate(piece)
+		}
+	case 1:
+		if fileNameRegex.MatchString(input) {
+			newHighlights = m.singleRuneHighlightUpdate(piece, rune(input[0]))
+		}
+	case 2:
+		newHighlights = m.doubleRuneHighlightUpdate(input)
+	case 3:
+		newHighlights = m.tripleRuneHighlightUpdate(input)
+	case 4:
+		newHighlights = m.fullMoveHighlightUpdate(input)
+	}
+	return
 }
 
 func (b bitboard) highlighted(sq chess.Square) bool {
