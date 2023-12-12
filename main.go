@@ -180,6 +180,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.guessCursor = 0
 				}
 				m.nextMoveField.SetValue(m.guessList[m.guessCursor].String())
+				m.highlightsBoard = m.generateHighlights(m.nextMoveField.Value())
 			}
 
 		}
