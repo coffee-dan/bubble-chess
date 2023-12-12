@@ -179,10 +179,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.guessCursor = 0
 				}
-				m.nextMoveField.SetValue(m.guessList[m.guessCursor].String())
-				m.highlightsBoard = m.generateHighlights(m.nextMoveField.Value())
+
+				selection := m.guessList[m.guessCursor].String()
+				m.nextMoveField.SetValue(selection)
+				m.highlightsBoard = m.generateHighlights(selection)
+				m.guessMenu.SetContent(m.renderGuessList())
 			}
 
+			return m, nil
 		}
 	default:
 		var input string = m.nextMoveField.Value()
@@ -563,10 +567,17 @@ func (m *Model) renderMoveList() string {
 
 func (m *Model) renderGuessList() string {
 	var str string = ""
-	for _, mov := range m.guessList {
-		str = str + mov.String() + " "
+	for idx, mov := range m.guessList {
+		movStr := mov.String()
+		if idx == m.guessCursor {
+			movStr = lipgloss.NewStyle().
+				Background(white).
+				Foreground(black).
+				Render(movStr)
+		}
+		str += fmt.Sprintf("%s ", movStr)
 	}
-	return str
+	return fmt.Sprintf("%s ", str)
 }
 
 func (m *Model) View() string {
