@@ -190,13 +190,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.guessCursor = NO_GUESS
 		m.guessMenu.SetContent(m.renderGuessList())
 
-		// K for king, Q for queen, R for rook, B for bishop, and N for knight
+		m.clearHighlights()
 
 		var piece chess.Piece
 		if len(input) >= 1 && pieceNameRegex.MatchString(input[0:1]) {
 			pieceType := toPieceType(input[0:1])
 			if pieceType == chess.NoPieceType {
-				m.clearHighlights()
 				return m, nil
 			}
 			piece = toPiece(pieceType, chess.White)
@@ -207,25 +206,19 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch len(input) {
 		case 0:
-			if piece == chess.WhitePawn {
-				m.clearHighlights()
-			} else {
-				m.namedPieceHighlightUpdate(piece)
+			if piece != chess.WhitePawn {
+				m.highlightsBoard = m.namedPieceHighlightUpdate(piece)
 			}
 		case 1:
 			if fileNameRegex.MatchString(input) {
-				m.singleRuneHighlightUpdate(piece, rune(input[0]))
-			} else {
-				m.clearHighlights()
+				m.highlightsBoard = m.singleRuneHighlightUpdate(piece, rune(input[0]))
 			}
 		case 2:
-			m.doubleRuneHighlightUpdate(input)
+			m.highlightsBoard = m.doubleRuneHighlightUpdate(input)
 		case 3:
-			m.tripleRuneHighlightUpdate(input)
+			m.highlightsBoard = m.tripleRuneHighlightUpdate(input)
 		case 4:
-			m.fullMoveHighlightUpdate(input)
-		default:
-			m.clearHighlights()
+			m.highlightsBoard = m.fullMoveHighlightUpdate(input)
 		}
 
 		return m, nil
@@ -300,7 +293,7 @@ func toPiece(typ chess.PieceType, col chess.Color) chess.Piece {
 	return chess.NoPiece
 }
 
-func (m *Model) namedPieceHighlightUpdate(piece chess.Piece) {
+func (m *Model) namedPieceHighlightUpdate(piece chess.Piece) bitboard {
 	var origins []chess.Square
 	for _, mov := range m.game.ValidMoves() {
 		if m.game.Position().Board().Piece(mov.S1()) == piece {
@@ -308,7 +301,7 @@ func (m *Model) namedPieceHighlightUpdate(piece chess.Piece) {
 		}
 	}
 
-	m.highlightsBoard = toBitboard(origins)
+	return toBitboard(origins)
 }
 
 func toBitboard(squares []chess.Square) bitboard {
@@ -397,7 +390,7 @@ func (m *Model) generateGuessList(input string) []chess.Move {
 	return moveList
 }
 
-func (m *Model) singleRuneHighlightUpdate(piece chess.Piece, input rune) {
+func (m *Model) singleRuneHighlightUpdate(piece chess.Piece, input rune) bitboard {
 	idx := toColIndex(input)
 
 	file := chess.File(idx)
@@ -411,7 +404,7 @@ func (m *Model) singleRuneHighlightUpdate(piece chess.Piece, input rune) {
 		}
 	}
 
-	m.highlightsBoard = toBitboard(origins)
+	return toBitboard(origins)
 }
 
 func toFile(input string) chess.File {
@@ -422,7 +415,7 @@ func toSquare(input string) chess.Square {
 	return strToSquareMap[input]
 }
 
-func (m *Model) doubleRuneHighlightUpdate(input string) {
+func (m *Model) doubleRuneHighlightUpdate(input string) bitboard {
 	sq := toSquare(input)
 
 	var destinations []chess.Square
@@ -433,16 +426,15 @@ func (m *Model) doubleRuneHighlightUpdate(input string) {
 		}
 	}
 
-	m.highlightsBoard = toBitboard(destinations)
+	return toBitboard(destinations)
 }
 
-func (m *Model) tripleRuneHighlightUpdate(input string) {
+func (m *Model) tripleRuneHighlightUpdate(input string) bitboard {
 	sq := toSquare(input[0:2])
 	idx := toColIndex(rune(input[2]))
 
 	if sq == chess.NoSquare || idx > 8 || idx < 0 {
-		m.clearHighlights()
-		return
+		return 0
 	}
 
 	file := chess.File(idx)
@@ -455,16 +447,15 @@ func (m *Model) tripleRuneHighlightUpdate(input string) {
 		}
 	}
 
-	m.highlightsBoard = toBitboard(destinations)
+	return toBitboard(destinations)
 }
 
-func (m *Model) fullMoveHighlightUpdate(input string) {
+func (m *Model) fullMoveHighlightUpdate(input string) bitboard {
 	sq1 := toSquare(input[0:2])
 	sq2 := toSquare(input[2:4])
 
 	if sq1 == chess.NoSquare || sq2 == chess.NoSquare {
-		m.clearHighlights()
-		return
+		return 0
 	}
 
 	var destinations []chess.Square
@@ -475,7 +466,7 @@ func (m *Model) fullMoveHighlightUpdate(input string) {
 		}
 	}
 
-	m.highlightsBoard = toBitboard(destinations)
+	return toBitboard(destinations)
 }
 
 func (m *Model) clearHighlights() {
