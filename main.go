@@ -187,6 +187,19 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			return m, nil
+		case tea.KeyShiftTab:
+			if guessLen := len(m.guessList); guessLen > 1 {
+				if m.guessCursor > 0 {
+					m.guessCursor -= 1
+				} else {
+					m.guessCursor = guessLen - 1
+				}
+			}
+
+			selection := m.guessList[m.guessCursor].String()
+			m.nextMoveField.SetValue(selection)
+			m.highlightsBoard = m.generateHighlights(selection)
+			m.guessMenu.SetContent(m.renderGuessList())
 		}
 	default:
 		var input string = m.nextMoveField.Value()
