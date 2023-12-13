@@ -383,7 +383,7 @@ func (m *Model) generateGuessList(input string) []chess.Move {
 			continue
 		}
 
-		if !haveSquare1 && !haveFile1 {
+		if piece == chess.Piece(chess.Pawn) && !haveSquare1 && !haveFile1 {
 			continue
 		}
 
