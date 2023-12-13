@@ -6,7 +6,6 @@ import (
 	"os"
 	"regexp"
 	"strconv"
-	"unicode"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -313,11 +312,6 @@ func toBitboard(squares []chess.Square) bitboard {
 	return bitboard(bb)
 }
 
-func toColIndex(input rune) int {
-	lower := unicode.ToLower(input)
-	return int(lower - 'a')
-}
-
 func min(a int, b int) int {
 	if a < b {
 		return a
@@ -355,7 +349,7 @@ func (m *Model) generateGuessList(input string) []chess.Move {
 	if haveSquare1 && squareNameRegex.MatchString(twoRunes) {
 		s1 = toSquare(twoRunes)
 	} else {
-		file1 = toFile(input[0:])
+		haveFile1, file1 = toFile(input[0:])
 	}
 
 	board := m.game.Position().Board()
@@ -373,21 +367,23 @@ func (m *Model) generateGuessList(input string) []chess.Move {
 			continue
 		}
 
+		if !haveSquare1 && !haveFile1 {
+			continue
+		}
+
 		moveList = append(moveList, *mov)
 	}
 
 	return moveList
 }
 
-func (m *Model) singleRuneHighlightUpdate(piece chess.Piece, input rune) bitboard {
-	idx := toColIndex(input)
-
-	file := chess.File(idx)
+func (m *Model) singleRuneHighlightUpdate(piece chess.Piece, input string) bitboard {
+	ok, file := toFile(input)
 	var origins []chess.Square
 
 	for _, mov := range m.game.ValidMoves() {
 		s1 := mov.S1()
-		if s1.File() == file &&
+		if ok && s1.File() == file &&
 			m.game.Position().Board().Piece(s1) == piece {
 			origins = append(origins, s1)
 		}
@@ -396,8 +392,12 @@ func (m *Model) singleRuneHighlightUpdate(piece chess.Piece, input rune) bitboar
 	return toBitboard(origins)
 }
 
-func toFile(input string) chess.File {
-	return strToFileMap[input]
+func toFile(input string) (bool, chess.File) {
+	if fileNameRegex.MatchString(input) {
+		return true, strToFileMap[input]
+	} else {
+		return false, chess.FileA
+	}
 }
 
 func toSquare(input string) chess.Square {
@@ -420,13 +420,11 @@ func (m *Model) doubleRuneHighlightUpdate(input string) bitboard {
 
 func (m *Model) tripleRuneHighlightUpdate(input string) bitboard {
 	sq := toSquare(input[0:2])
-	idx := toColIndex(rune(input[2]))
+	ok, file := toFile(input[2:3])
 
-	if sq == chess.NoSquare || idx > 8 || idx < 0 {
+	if sq == chess.NoSquare || !ok {
 		return 0
 	}
-
-	file := chess.File(idx)
 
 	var destinations []chess.Square
 
@@ -479,7 +477,7 @@ func (m *Model) generateHighlights(input string) (newHighlights bitboard) {
 		}
 	case 1:
 		if fileNameRegex.MatchString(input) {
-			newHighlights = m.singleRuneHighlightUpdate(piece, rune(input[0]))
+			newHighlights = m.singleRuneHighlightUpdate(piece, input[0:1])
 		}
 	case 2:
 		newHighlights = m.doubleRuneHighlightUpdate(input)
