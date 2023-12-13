@@ -180,7 +180,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.guessCursor = 0
 				}
 
-				selection := m.guessList[m.guessCursor].String()
+				selection := m.renderMove(m.guessList[m.guessCursor])
 				m.nextMoveField.SetValue(selection)
 				m.highlightsBoard = m.generateHighlights(selection)
 				m.guessMenu.SetContent(m.renderGuessList())
@@ -196,7 +196,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
-			selection := m.guessList[m.guessCursor].String()
+			selection := m.renderMove(m.guessList[m.guessCursor])
 			m.nextMoveField.SetValue(selection)
 			m.highlightsBoard = m.generateHighlights(selection)
 			m.guessMenu.SetContent(m.renderGuessList())
@@ -578,10 +578,42 @@ func (m *Model) renderMoveList() string {
 	)
 }
 
+func toString(pt chess.PieceType) string {
+	switch pt {
+	case chess.King:
+		return "K"
+	case chess.Queen:
+		return "Q"
+	case chess.Rook:
+		return "R"
+	case chess.Bishop:
+		return "B"
+	case chess.Knight:
+		return "N"
+	}
+	return ""
+}
+
+func (m *Model) renderMove(mov chess.Move) string {
+	var board *chess.Board = m.game.Position().Board()
+	var str string = ""
+	s1 := mov.S1()
+	if pieceType := board.Piece(s1).Type(); pieceType != chess.Pawn {
+		str += toString(pieceType)
+	}
+	str += s1.String()
+	if mov.HasTag(chess.Capture) {
+		str += "x"
+	}
+	s2 := mov.S2()
+	str += s2.String()
+	return str
+}
+
 func (m *Model) renderGuessList() string {
 	var str string = ""
 	for idx, mov := range m.guessList {
-		movStr := mov.String()
+		movStr := m.renderMove(mov)
 		if idx == m.guessCursor {
 			movStr = lipgloss.NewStyle().
 				Background(white).
