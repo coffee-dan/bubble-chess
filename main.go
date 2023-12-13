@@ -20,12 +20,20 @@ type Model struct {
 	validations     viewport.Model
 	nextMoveField   textarea.Model
 	game            chess.Game
+	boardDirection  direction
 	highlightsBoard bitboard
 	guessList       []chess.Move
 	guessMenu       viewport.Model
 	guessCursor     int
 	err             error
 }
+
+type direction uint8
+
+const (
+	WhiteDirection = iota
+	BlackDirection
+)
 
 type bitboard uint64
 
@@ -124,6 +132,7 @@ func New() *Model {
 		pastMovesView:   pm,
 		validations:     vs,
 		game:            *chess.NewGame(chess.UseNotation(chess.LongAlgebraicNotation{})),
+		boardDirection:  WhiteDirection,
 		highlightsBoard: 0,
 		guessList:       []chess.Move{},
 		guessMenu:       gb,
@@ -199,6 +208,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.nextMoveField.SetValue(selection)
 			m.highlightsBoard = m.generateHighlights(selection)
 			m.guessMenu.SetContent(m.renderGuessList())
+		case tea.KeyCtrlF:
+			if m.boardDirection == WhiteDirection {
+				m.boardDirection = BlackDirection
+			} else {
+				m.boardDirection = WhiteDirection
+			}
+			return m, nil
 		}
 	default:
 		var input string = m.nextMoveField.Value()
@@ -495,7 +511,13 @@ func (b bitboard) highlighted(sq chess.Square) bool {
 
 func (m *Model) RenderBoard() string {
 	const numOfSquaresInRow = 8
-	b := m.game.Position().Board()
+	var b *chess.Board
+
+	if m.boardDirection == WhiteDirection {
+		b = m.game.Position().Board()
+	} else {
+		b = m.game.Position().Board().Flip(chess.UpDown)
+	}
 
 	borderStyle := lipgloss.NewStyle().
 		Background(black).
@@ -640,7 +662,7 @@ func (m *Model) View() string {
 		"\n\n\n%s\n\n%s\n%s",
 		mainContent,
 		footer,
-		"Press esc to quit.\n",
+		"esc/^C quit | tab toggle | ^F flip \n",
 	)
 }
 
