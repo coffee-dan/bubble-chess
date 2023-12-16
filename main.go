@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/bits"
 	"math/rand"
 	"os"
 	"regexp"
@@ -505,8 +506,20 @@ func (m *Model) generateHighlights(input string) (newHighlights bitboard) {
 	return
 }
 
-func (b bitboard) highlighted(sq chess.Square) bool {
-	return (uint64(b) >> uint64(63-sq) & 1) == 1
+// Reverse returns a bitboard where the bit order is reversed.
+func (b bitboard) Reverse() bitboard {
+	return bitboard(bits.Reverse64(uint64(b)))
+}
+
+func (m *Model) highlighted(sq chess.Square) bool {
+	var b bitboard
+	if m.boardDirection == WhiteDirection {
+		b = m.highlightsBoard
+	} else {
+		b = m.highlightsBoard.Reverse()
+	}
+
+	return (bits.RotateLeft64(uint64(b), int(sq)+1) & 1) == 1
 }
 
 func (m *Model) RenderBoard() string {
@@ -516,7 +529,7 @@ func (m *Model) RenderBoard() string {
 	if m.boardDirection == WhiteDirection {
 		b = m.game.Position().Board()
 	} else {
-		b = m.game.Position().Board().Flip(chess.UpDown)
+		b = m.game.Position().Board().Flip(chess.UpDown).Flip(chess.LeftRight)
 	}
 
 	borderStyle := lipgloss.NewStyle().
@@ -563,13 +576,13 @@ func (m *Model) RenderBoard() string {
 			var sqStyle lipgloss.Style
 
 			if isWhite {
-				if m.highlightsBoard.highlighted(square) {
+				if m.highlighted(square) {
 					sqStyle = squareWhiteHighlight
 				} else {
 					sqStyle = squareWhite
 				}
 			} else {
-				if m.highlightsBoard.highlighted(square) {
+				if m.highlighted(square) {
 					sqStyle = squareBlackHighlight
 				} else {
 					sqStyle = squareBlack
