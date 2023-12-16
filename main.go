@@ -552,10 +552,23 @@ func (m *Model) RenderBoard() string {
 		Background(green)
 
 	s := "\n"
-	s += borderStyle.Render("  A B C D E F G H   ")
+
+	if m.boardDirection == WhiteDirection {
+		s += borderStyle.Render("  A B C D E F G H   ")
+	} else {
+		s += borderStyle.Render("  H G F E D C B A   ")
+	}
+
 	s += "\n"
 	for r := 7; r >= 0; r-- {
-		s += borderStyle.Render(chess.Rank(r).String() + " ")
+		var displayRank string
+		if m.boardDirection == WhiteDirection {
+			displayRank = borderStyle.Render(chess.Rank(r).String() + " ")
+		} else {
+			displayRank = borderStyle.Render(chess.Rank(7-r).String() + " ")
+		}
+		s += displayRank
+
 		for f := 0; f < numOfSquaresInRow; f++ {
 
 			square := chess.NewSquare(chess.File(f), chess.Rank(r))
@@ -595,11 +608,16 @@ func (m *Model) RenderBoard() string {
 			s += sq
 			isWhite = !isWhite
 		}
-		s += borderStyle.Render(chess.Rank(r).String() + " ")
+
 		isWhite = !isWhite
+		s += displayRank
 		s += "\n"
 	}
-	s += borderStyle.Render("  A B C D E F G H   ")
+	if m.boardDirection == WhiteDirection {
+		s += borderStyle.Render("  A B C D E F G H   ")
+	} else {
+		s += borderStyle.Render("  H G F E D C B A   ")
+	}
 	return s
 }
 
