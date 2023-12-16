@@ -29,6 +29,12 @@ type Model struct {
 	err             error
 }
 
+const (
+	width       = 64
+	columnWidth = 20
+	margin      = 1
+)
+
 type direction uint8
 
 const (
@@ -115,17 +121,17 @@ func New() *Model {
 	ta.Focus()
 	ta.Prompt = "> "
 	ta.CharLimit = 10
-	ta.SetWidth(30)
+	ta.SetWidth(columnWidth)
 	ta.SetHeight(1)
 	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
 	ta.KeyMap.InsertNewline.SetEnabled(false)
 
-	hd := viewport.New(30, 2)
+	hd := viewport.New(columnWidth, 2)
 	hd.SetContent(`White to move`)
 
-	pm := viewport.New(30, 5)
-	vs := viewport.New(30, 1)
-	gb := viewport.New(60, 1)
+	pm := viewport.New(columnWidth, 5)
+	vs := viewport.New(columnWidth, 1)
+	gb := viewport.New(columnWidth*2, 2)
 
 	return &Model{
 		nextMoveField:   ta,
@@ -216,6 +222,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.boardDirection = WhiteDirection
 			}
 			return m, nil
+		case tea.KeyCtrlT:
+			m.guessMenu.SetContent("--------10--------20--------30--------40--------50--------60--------70")
 		}
 	default:
 		var input string = m.nextMoveField.Value()
@@ -551,7 +559,7 @@ func (m *Model) RenderBoard() string {
 	squareWhiteHighlight := lipgloss.NewStyle().
 		Background(green)
 
-	s := "\n"
+	s := ""
 
 	if m.boardDirection == WhiteDirection {
 		s += borderStyle.Render("  A B C D E F G H   ")
@@ -676,24 +684,39 @@ func (m *Model) renderGuessList() string {
 	return fmt.Sprintf("%s ", str)
 }
 
+var (
+	columnStyle = lipgloss.NewStyle().
+		Align(lipgloss.Left).
+		// Foreground(lipgloss.Color("#FAFAFA")).
+		// Background(highlight).
+		Margin(0, margin).
+		// Padding(1, 2).
+		// Height(19).
+		Width(columnWidth)
+)
+
 func (m *Model) View() string {
-	leftPane := m.RenderBoard()
-	rightPane := fmt.Sprintf(
-		"%s\n%s\n%s\n%s",
-		m.header.View(),
+	column1 := m.RenderBoard()
+	column2 := lipgloss.JoinVertical(
+		lipgloss.Top,
 		m.pastMovesView.View(),
-		m.validations.View(),
 		m.nextMoveField.View(),
 	)
-	mainContent := lipgloss.JoinHorizontal(lipgloss.Center, leftPane, rightPane)
+	mainContent := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		columnStyle.Copy().Align(lipgloss.Right).Render(column1),
+		columnStyle.Copy().Align(lipgloss.Center).Render(column2),
+		columnStyle.Copy().MarginRight(0).Render("esc/^C quit\ntab toggle\n^F flip"),
+	)
 
-	footer := m.guessMenu.View()
+	footer := lipgloss.NewStyle().
+		Margin(margin).
+		Width(width - margin*2).
+		Render(m.guessMenu.View())
 
-	return fmt.Sprintf(
-		"\n\n\n%s\n\n%s\n%s",
-		mainContent,
-		footer,
-		"esc/^C quit | tab toggle | ^F flip \n",
+	return lipgloss.JoinVertical(
+		lipgloss.Top,
+		mainContent, footer,
 	)
 }
 
