@@ -16,9 +16,7 @@ import (
 )
 
 type Model struct {
-	header          viewport.Model
 	pastMovesView   viewport.Model
-	validations     viewport.Model
 	nextMoveField   textinput.Model
 	game            chess.Game
 	boardDirection  direction
@@ -121,18 +119,12 @@ func New() *Model {
 	nmField.CharLimit = columnWidth - len(nmField.Prompt)
 	nmField.Width = columnWidth
 
-	hd := viewport.New(columnWidth, 2)
-	hd.SetContent(`White to move`)
-
 	pm := viewport.New(columnWidth, 5)
-	vs := viewport.New(columnWidth, 1)
 	gb := viewport.New(columnWidth*2, 2)
 
 	return &Model{
 		nextMoveField:   nmField,
-		header:          hd,
 		pastMovesView:   pm,
-		validations:     vs,
 		game:            *chess.NewGame(chess.UseNotation(chess.LongAlgebraicNotation{})),
 		boardDirection:  WhiteDirection,
 		highlightsBoard: 0,
@@ -175,7 +167,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			input := m.nextMoveField.Value()
 
 			if err := m.game.MoveStr(input); err != nil {
-				m.validations.SetContent(err.Error())
+				// display err
 			} else {
 				m.nextMoveField.Reset()
 				m.pastMovesView.SetContent(m.renderMoveList())
