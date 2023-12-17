@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -19,7 +19,7 @@ type Model struct {
 	header          viewport.Model
 	pastMovesView   viewport.Model
 	validations     viewport.Model
-	nextMoveField   textarea.Model
+	nextMoveField   textinput.Model
 	game            chess.Game
 	boardDirection  direction
 	highlightsBoard bitboard
@@ -115,16 +115,11 @@ type (
 )
 
 func New() *Model {
-	ta := textarea.New()
-	ta.ShowLineNumbers = false
-	ta.Placeholder = "Your move."
-	ta.Focus()
-	ta.Prompt = "> "
-	ta.CharLimit = 10
-	ta.SetWidth(columnWidth)
-	ta.SetHeight(1)
-	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
-	ta.KeyMap.InsertNewline.SetEnabled(false)
+	nmField := textinput.New()
+	nmField.Placeholder = "Your move"
+	nmField.Focus()
+	nmField.CharLimit = columnWidth - len(nmField.Prompt)
+	nmField.Width = columnWidth
 
 	hd := viewport.New(columnWidth, 2)
 	hd.SetContent(`White to move`)
@@ -134,7 +129,7 @@ func New() *Model {
 	gb := viewport.New(columnWidth*2, 2)
 
 	return &Model{
-		nextMoveField:   ta,
+		nextMoveField:   nmField,
 		header:          hd,
 		pastMovesView:   pm,
 		validations:     vs,
@@ -159,7 +154,7 @@ func (m *Model) gameNextStep() tea.Msg {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return textarea.Blink
+	return textinput.Blink
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -698,14 +693,14 @@ var (
 func (m *Model) View() string {
 	column1 := m.RenderBoard()
 	column2 := lipgloss.JoinVertical(
-		lipgloss.Top,
+		lipgloss.Left,
 		m.pastMovesView.View(),
 		m.nextMoveField.View(),
 	)
 	mainContent := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		columnStyle.Copy().Align(lipgloss.Right).Render(column1),
-		columnStyle.Copy().Align(lipgloss.Center).Render(column2),
+		columnStyle.Copy().Align(lipgloss.Center).Render(column1),
+		columnStyle.Copy().Align(lipgloss.Left).Render(column2),
 		columnStyle.Copy().MarginRight(0).Render("esc/^C quit\ntab toggle\n^F flip"),
 	)
 
