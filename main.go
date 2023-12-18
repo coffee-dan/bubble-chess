@@ -22,7 +22,7 @@ type Model struct {
 	boardDirection  direction
 	highlightsBoard bitboard
 	guessList       []chess.Move
-	guessMenu       viewport.Model
+	guessMenu       string
 	guessCursor     int
 	err             error
 }
@@ -120,7 +120,6 @@ func New() *Model {
 	nmField.Width = columnWidth
 
 	pm := viewport.New(columnWidth, 5)
-	gb := viewport.New(columnWidth*2, 2)
 
 	return &Model{
 		nextMoveField:   nmField,
@@ -129,7 +128,7 @@ func New() *Model {
 		boardDirection:  WhiteDirection,
 		highlightsBoard: 0,
 		guessList:       []chess.Move{},
-		guessMenu:       gb,
+		guessMenu:       "",
 		guessCursor:     NO_GUESS,
 		err:             nil,
 	}
@@ -185,7 +184,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				selection := m.renderMove(m.guessList[m.guessCursor])
 				m.nextMoveField.SetValue(selection)
 				m.highlightsBoard = m.generateHighlights(selection)
-				m.guessMenu.SetContent(m.renderGuessList())
+				m.guessMenu = m.renderGuessList()
 			}
 
 			return m, nil
@@ -201,7 +200,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			selection := m.renderMove(m.guessList[m.guessCursor])
 			m.nextMoveField.SetValue(selection)
 			m.highlightsBoard = m.generateHighlights(selection)
-			m.guessMenu.SetContent(m.renderGuessList())
+			m.guessMenu = m.renderGuessList()
 		case tea.KeyCtrlF:
 			if m.boardDirection == WhiteDirection {
 				m.boardDirection = BlackDirection
@@ -210,14 +209,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case tea.KeyCtrlT:
-			m.guessMenu.SetContent("--------10--------20--------30--------40--------50--------60--------70")
+			m.guessMenu = "--------10--------20--------30--------40--------50--------60--------70"
 		}
 	default:
 		var input string = m.nextMoveField.Value()
 
 		m.guessList = m.generateGuessList(input)
 		m.guessCursor = NO_GUESS
-		m.guessMenu.SetContent(m.renderGuessList())
+		m.guessMenu = m.renderGuessList()
 
 		m.highlightsBoard = m.generateHighlights(input)
 
@@ -674,11 +673,7 @@ func (m *Model) renderGuessList() string {
 var (
 	columnStyle = lipgloss.NewStyle().
 		Align(lipgloss.Left).
-		// Foreground(lipgloss.Color("#FAFAFA")).
-		// Background(highlight).
 		Margin(0, margin).
-		// Padding(1, 2).
-		// Height(19).
 		Width(columnWidth)
 )
 
@@ -699,7 +694,8 @@ func (m *Model) View() string {
 	footer := lipgloss.NewStyle().
 		Margin(margin).
 		Width(width - margin*2).
-		Render(m.guessMenu.View())
+		Height(2).
+		Render(m.guessMenu)
 
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
