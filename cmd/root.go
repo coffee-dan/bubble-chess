@@ -32,33 +32,37 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "bubble-chess",
-	Short: "A simple chess tui",
-	Long: `Bubble Chess is a terminal UI chess game.
+var (
+	customStartFEN string
+
+	rootCmd = &cobra.Command{
+		Use:   "bubble-chess",
+		Short: "A simple chess tui",
+		Long: `Bubble Chess is a terminal UI chess game.
 It is build with Bubbletea and is intended
 to be feature complete by December 31 2023.`,
 
-	Run: func(cmd *cobra.Command, args []string) {
-		p := tea.NewProgram(New())
+		Run: func(cmd *cobra.Command, args []string) {
+			p := tea.NewProgram(New(customStartFEN))
 
-		// use args
-		if len(os.Getenv("DEBUG")) > 0 {
-			f, err := tea.LogToFile("debug.log", "debug")
-			if err != nil {
-				fmt.Println("fatal:", err)
-				os.Exit(1)
+			// use args
+			if len(os.Getenv("DEBUG")) > 0 {
+				f, err := tea.LogToFile("debug.log", "debug")
+				if err != nil {
+					fmt.Println("fatal:", err)
+					os.Exit(1)
+				}
+
+				defer f.Close()
 			}
 
-			defer f.Close()
-		}
-
-		if _, err := p.Run(); err != nil {
-			fmt.Printf("Alas, there's been an error: %v", err)
-			os.Exit(1)
-		}
-	},
-}
+			if _, err := p.Run(); err != nil {
+				fmt.Printf("Alas, there's been an error: %v", err)
+				os.Exit(1)
+			}
+		},
+	}
+)
 
 type Model struct {
 	pastMovesView   viewport.Model
@@ -157,7 +161,7 @@ type (
 	errMsg error
 )
 
-func New() *Model {
+func New(fen string) *Model {
 	nmField := textinput.New()
 	nmField.Placeholder = "Your move"
 	nmField.Focus()
@@ -166,10 +170,18 @@ func New() *Model {
 
 	pm := viewport.New(columnWidth, 5)
 
+	gameOptions := []func(*chess.Game){chess.UseNotation(chess.LongAlgebraicNotation{})}
+
+	if fen != "" {
+		if newOpts, err := chess.FEN(fen); err == nil {
+			gameOptions = append(gameOptions, newOpts)
+		}
+	}
+
 	return &Model{
 		nextMoveField:   nmField,
 		pastMovesView:   pm,
-		game:            *chess.NewGame(chess.UseNotation(chess.LongAlgebraicNotation{})),
+		game:            *chess.NewGame(gameOptions...),
 		boardDirection:  WhiteDirection,
 		highlightsBoard: 0,
 		guessList:       []chess.Move{},
@@ -766,5 +778,5 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().StringVarP(&customStartFEN, "fen", "f", "", "FEN to start from")
 }
