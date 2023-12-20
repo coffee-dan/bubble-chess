@@ -14,13 +14,12 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-package cmd
+package game
 
 import (
 	"fmt"
 	"math/bits"
 	"math/rand"
-	"os"
 	"regexp"
 	"strconv"
 
@@ -29,39 +28,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/notnil/chess"
-	"github.com/spf13/cobra"
-)
-
-var (
-	customStartFEN string
-
-	rootCmd = &cobra.Command{
-		Use:   "bubble-chess",
-		Short: "A simple chess tui",
-		Long: `Bubble Chess is a terminal UI chess game.
-It is build with Bubbletea and is intended
-to be feature complete by December 31 2023.`,
-
-		Run: func(cmd *cobra.Command, args []string) {
-			p := tea.NewProgram(New(customStartFEN))
-
-			// use args
-			if len(os.Getenv("DEBUG")) > 0 {
-				f, err := tea.LogToFile("debug.log", "debug")
-				if err != nil {
-					fmt.Println("fatal:", err)
-					os.Exit(1)
-				}
-
-				defer f.Close()
-			}
-
-			if _, err := p.Run(); err != nil {
-				fmt.Printf("Alas, there's been an error: %v", err)
-				os.Exit(1)
-			}
-		},
-	}
 )
 
 type Model struct {
@@ -758,25 +724,4 @@ func (m *Model) View() string {
 		lipgloss.Top,
 		mainContent, footer,
 	)
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
-func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.bubble-chess.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().StringVarP(&customStartFEN, "fen", "f", "", "FEN to start from")
 }
