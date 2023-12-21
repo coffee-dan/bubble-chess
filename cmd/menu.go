@@ -90,25 +90,63 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // TODO make a colors module
 var (
-	white lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#FFFFFF", ANSI256: "15", ANSI: "15"}
-	// black       lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#000000", ANSI256: "0", ANSI: "0"}
+	white   lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#FFFFFF", ANSI256: "15", ANSI: "15"}
+	black   lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#000000", ANSI256: "0", ANSI: "0"}
 	magenta lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#AF48B6", ANSI256: "13", ANSI: "5"}
-	// cyan        lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#4DA5C9", ANSI256: "14", ANSI: "6"}
+	cyan    lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#4DA5C9", ANSI256: "14", ANSI: "6"}
 	// green       lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#0dbc79", ANSI256: "2", ANSI: "2"}
 	// brightgreen lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#23d18b", ANSI256: "10", ANSI: "10"}
 )
 
-const banner string = `Bubble Chess`
+// 88888bo 888 888 88888bo 88888bo 888    d88888
+// 888 888 888v888 888 888 888 888 888    8888<
+// 88888<  8888888 88888<  88888<  888.d8 888888
+// 888 888 8888888 888 888 888 888 888888 8888<
+// 88888P" ?88888P 88888P" 88888P" 888888 ?88888
+
+const chess string = ` ,d8888 d88 88b d88888  d88888  d88888
+d888888 888v888 8888<  88888<  88888<
+88888<  8888888 888888 8888888 8888888
+?888888 888^888 8888<   >88888  >88888
+ "Y8888 ?88 88? ?88888 88888P  88888P`
+
+var chessTitle string = ""
+
+var chessStyle = lipgloss.NewStyle().
+	Background(cyan).
+	Foreground(black)
 
 var bannerStyle = lipgloss.NewStyle().
 	Align(lipgloss.Left).
-	Margin(1, 0)
+	Margin(1)
 
 var selectedMenuItemStyle = lipgloss.NewStyle().
 	Background(magenta).
 	Foreground(white)
 
-func (m *Model) renderMenuItems() (menu string) {
+var menuListStyle = lipgloss.NewStyle().
+	MarginRight(4)
+
+func renderTitle() (title string) {
+	if chessTitle == "" {
+		var text string
+		for _, ru := range chess {
+			if str := string(ru); str != " " && str != "\n" {
+				text += str
+			} else {
+				chessTitle += chessStyle.Render(text)
+				text = ""
+				chessTitle += str
+			}
+		}
+		chessTitle += chessStyle.Render(text)
+	}
+	title = bannerStyle.Render(chessTitle)
+	return
+}
+
+func (m *Model) renderMenuItems() string {
+	var menu = ""
 	for idx, itm := range m.menuItems {
 		baseItm := fmt.Sprintf(" %s ", itm)
 		if idx == m.menuCursor {
@@ -118,14 +156,20 @@ func (m *Model) renderMenuItems() (menu string) {
 		}
 		menu += "\n"
 	}
-	return
+	return menuListStyle.Render(menu)
 }
+
+const sidebar = `bubble-chess 0.0.1`
 
 func (m *Model) View() string {
 	return lipgloss.JoinVertical(
-		lipgloss.Left,
-		bannerStyle.Render(banner),
-		m.renderMenuItems(),
+		lipgloss.Center,
+		renderTitle(),
+		lipgloss.JoinHorizontal(
+			lipgloss.Top,
+			m.renderMenuItems(),
+			sidebar,
+		),
 	)
 }
 
