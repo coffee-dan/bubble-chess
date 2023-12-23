@@ -32,32 +32,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	rootCmd = &cobra.Command{
-		Use:   "bubble-chess",
-		Short: "A simple chess tui",
-		Long: `Bubble Chess is a terminal UI chess game.
-It is build with Bubbletea and is intended
-to be feature complete by December 31 2023.`,
-
-		Run: func(cmd *cobra.Command, args []string) {
-			p := tea.NewProgram(New(""))
-
-			if _, err := p.Run(); err != nil {
-				fmt.Printf("Alas, there's been an error: %v", err)
-				os.Exit(1)
-			}
-		},
-	}
-)
-
+type GameMsg int
 type programMode int
-
-const (
-	MainMenuMode = iota
-	GameMode
-)
-
+type direction uint8
+type bitboard uint64
+type errMsg error
+type MenuItem struct {
+	title  string
+	action tea.Cmd
+}
 type Model struct {
 	mode            programMode
 	menuItems       []MenuItem
@@ -73,33 +56,27 @@ type Model struct {
 	err             error
 }
 
+// 88888bo 888 888 88888bo 88888bo 888    d88888
+// 888 888 888v888 888 888 888 888 888    8888<
+// 88888<  8888888 88888<  88888<  888.d8 888888
+// 888 888 8888888 888 888 888 888 888888 8888<
+// 88888P" ?88888P 88888P" 88888P" 888888 ?88888
+
+const chessString string = ` ,d8888 d88 88b d88888  d88888  d88888
+d888888 888v888 8888<  88888<  88888<
+88888<  8888888 888888 8888888 8888888
+?888888 888^888 8888<   >88888  >88888
+ "Y8888 ?88 88? ?88888 88888P  88888P`
+
+const sidebar = `bubble-chess 0.0.1`
+
+var chessTitle string = ""
+
 const (
 	width       = 64
 	columnWidth = 20
 	margin      = 1
 )
-
-type direction uint8
-
-const (
-	WhiteDirection = iota
-	BlackDirection
-)
-
-type bitboard uint64
-
-type GameMsg int
-
-func contains(squares []chess.Square, s chess.Square) bool {
-	for i := range squares {
-		if s == squares[i] {
-			return true
-		}
-	}
-	return false
-}
-
-func (gm GameMsg) Msg() {}
 
 const (
 	GameCPUTurn = iota
@@ -116,13 +93,40 @@ const (
 	NO_GUESS = -1 << iota
 )
 
+const (
+	WhiteDirection = iota
+	BlackDirection
+)
+
+const (
+	MainMenuMode = iota
+	GameMode
+)
+
+var rootCmd = &cobra.Command{
+	Use:   "bubble-chess",
+	Short: "A simple chess tui",
+	Long: `Bubble Chess is a terminal UI chess game.
+It is build with Bubbletea and is intended
+to be feature complete by December 31 2023.`,
+
+	Run: func(cmd *cobra.Command, args []string) {
+		p := tea.NewProgram(New(""))
+
+		if _, err := p.Run(); err != nil {
+			fmt.Printf("Alas, there's been an error: %v", err)
+			os.Exit(1)
+		}
+	},
+}
+
 var (
-	white       lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#FFFFFF", ANSI256: "15", ANSI: "15"}
-	black       lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#000000", ANSI256: "0", ANSI: "0"}
-	magenta     lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#AF48B6", ANSI256: "13", ANSI: "5"}
-	cyan        lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#4DA5C9", ANSI256: "14", ANSI: "6"}
-	green       lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#0dbc79", ANSI256: "2", ANSI: "2"}
-	brightgreen lipgloss.CompleteColor = lipgloss.CompleteColor{TrueColor: "#23d18b", ANSI256: "10", ANSI: "10"}
+	white       = lipgloss.CompleteColor{TrueColor: "#FFFFFF", ANSI256: "15", ANSI: "15"}
+	black       = lipgloss.CompleteColor{TrueColor: "#000000", ANSI256: "0", ANSI: "0"}
+	magenta     = lipgloss.CompleteColor{TrueColor: "#AF48B6", ANSI256: "13", ANSI: "5"}
+	cyan        = lipgloss.CompleteColor{TrueColor: "#4DA5C9", ANSI256: "14", ANSI: "6"}
+	green       = lipgloss.CompleteColor{TrueColor: "#0dbc79", ANSI256: "2", ANSI: "2"}
+	brightgreen = lipgloss.CompleteColor{TrueColor: "#23d18b", ANSI256: "10", ANSI: "10"}
 )
 
 var (
@@ -153,127 +157,13 @@ var (
 	pieceNameRegex  = regexp.MustCompile("[KQRBN]")
 	fileNameRegex   = regexp.MustCompile("[abcdefgh]")
 	squareNameRegex = regexp.MustCompile("[abcdefgh][12345678]")
+	moveListRegex   = regexp.MustCompile(` (\d+\.)`)
 )
 
-type (
-	errMsg error
-)
-
-func New(fen string) *Model {
-	nmField := textinput.New()
-	nmField.Placeholder = "Your move"
-	nmField.Focus()
-	nmField.CharLimit = columnWidth - len(nmField.Prompt)
-	nmField.Width = columnWidth
-
-	pm := viewport.New(columnWidth, 5)
-
-	gameOptions := []func(*chess.Game){chess.UseNotation(chess.LongAlgebraicNotation{})}
-
-	if fen != "" {
-		if newOpts, err := chess.FEN(fen); err == nil {
-			gameOptions = append(gameOptions, newOpts)
-		}
-	}
-
-	return &Model{
-		mode: MainMenuMode,
-		menuItems: []MenuItem{
-			{
-				title:  "Vs. Computer",
-				action: startGame,
-			},
-			{
-				title:  "Credits",
-				action: nil,
-			},
-		},
-		menuCursor:      0,
-		nextMoveField:   nmField,
-		pastMovesView:   pm,
-		game:            *chess.NewGame(gameOptions...),
-		boardDirection:  WhiteDirection,
-		highlightsBoard: 0,
-		guessList:       []chess.Move{},
-		guessMenu:       "",
-		guessCursor:     NO_GUESS,
-		err:             nil,
-	}
-}
-
-type MenuItem struct {
-	title  string
-	action tea.Cmd
-}
-
-func startGame() tea.Msg {
-	// p := tea.NewProgram(game.New(""))
-
-	// if _, err := p.Run(); err != nil {
-	// 	fmt.Printf("Alas, there's been an error: %v", err)
-	// 	os.Exit(1)
-	// }
-
-	return GameMsg(GameStart)
-}
-
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch m.mode {
-	case MainMenuMode:
-		return m.mainMenuUpdate(msg)
-	case GameMode:
-		return m.gameUpdate(msg)
-	}
-
-	return m, nil
-}
-
-func (m *Model) mainMenuUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
-			return m, tea.Quit
-		case tea.KeyEnter:
-
-			return m, m.menuItems[m.menuCursor].action
-		case tea.KeyUp:
-			if m.menuCursor < len(m.menuItems)-1 {
-				m.menuCursor += 1
-			} else {
-				m.menuCursor = 0
-			}
-		case tea.KeyDown:
-			if m.menuCursor > 0 {
-				m.menuCursor -= 1
-			} else {
-				m.menuCursor = len(m.menuItems) - 1
-			}
-		}
-		return m, nil
-	case GameMsg:
-		switch msg {
-		case GameStart:
-			m.mode = GameMode
-		}
-	}
-
-	return m, nil
-}
-
-// 88888bo 888 888 88888bo 88888bo 888    d88888
-// 888 888 888v888 888 888 888 888 888    8888<
-// 88888<  8888888 88888<  88888<  888.d8 888888
-// 888 888 8888888 888 888 888 888 888888 8888<
-// 88888P" ?88888P 88888P" 88888P" 888888 ?88888
-
-const chessString string = ` ,d8888 d88 88b d88888  d88888  d88888
-d888888 888v888 8888<  88888<  88888<
-88888<  8888888 888888 8888888 8888888
-?888888 888^888 8888<   >88888  >88888
- "Y8888 ?88 88? ?88888 88888P  88888P`
-
-var chessTitle string = ""
+var columnStyle = lipgloss.NewStyle().
+	Align(lipgloss.Left).
+	Margin(0, margin).
+	Width(columnWidth)
 
 var chessStyle = lipgloss.NewStyle().
 	Background(cyan).
@@ -289,6 +179,28 @@ var selectedMenuItemStyle = lipgloss.NewStyle().
 
 var menuListStyle = lipgloss.NewStyle().
 	MarginRight(4)
+
+func contains(squares []chess.Square, s chess.Square) bool {
+	for i := range squares {
+		if s == squares[i] {
+			return true
+		}
+	}
+	return false
+}
+
+func (gm GameMsg) Msg() {}
+
+func startGame() tea.Msg {
+	// p := tea.NewProgram(game.New(""))
+
+	// if _, err := p.Run(); err != nil {
+	// 	fmt.Printf("Alas, there's been an error: %v", err)
+	// 	os.Exit(1)
+	// }
+
+	return GameMsg(GameStart)
+}
 
 func renderTitle() (title string) {
 	if chessTitle == "" {
@@ -322,52 +234,6 @@ func (m *Model) renderMenuItems() string {
 	return menuListStyle.Render(menu)
 }
 
-const sidebar = `bubble-chess 0.0.1`
-
-func (m *Model) View() string {
-	switch m.mode {
-	case MainMenuMode:
-		return m.mainMenuView()
-	case GameMode:
-		return m.gameView()
-	}
-
-	return ""
-}
-
-func (m *Model) mainMenuView() string {
-	return lipgloss.JoinVertical(
-		lipgloss.Center,
-		renderTitle(),
-		lipgloss.JoinHorizontal(
-			lipgloss.Top,
-			m.renderMenuItems(),
-			sidebar,
-		),
-	)
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
-func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.bubble-chess.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	// rootCmd.Flags().StringVarP(&customStartFEN, "fen", "f", "", "FEN to start from")
-}
-
 func (m *Model) gameNextStep() tea.Msg {
 	if m.game.Outcome() == chess.NoOutcome {
 		if m.game.Position().Turn() == chess.Black {
@@ -376,106 +242,6 @@ func (m *Model) gameNextStep() tea.Msg {
 	}
 
 	return nil
-}
-
-func (m *Model) Init() tea.Cmd {
-	return textinput.Blink
-}
-
-func (m *Model) gameUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var (
-		tiCmd tea.Cmd
-		vpCmd tea.Cmd
-	)
-
-	m.nextMoveField, tiCmd = m.nextMoveField.Update(msg)
-	m.pastMovesView, vpCmd = m.pastMovesView.Update(msg)
-
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
-			return m, tea.Quit
-		case tea.KeyEnter:
-			input := m.nextMoveField.Value()
-
-			if err := m.game.MoveStr(input); err != nil {
-				// display err
-			} else {
-				m.nextMoveField.Reset()
-				m.pastMovesView.SetContent(m.renderMoveList())
-			}
-
-			return m, m.gameNextStep
-		case tea.KeyTab:
-			if guessLen := len(m.guessList); guessLen > 1 {
-				if m.guessCursor < guessLen-1 {
-					m.guessCursor += 1
-				} else {
-					m.guessCursor = 0
-				}
-
-				selection := m.renderMove(m.guessList[m.guessCursor])
-				m.nextMoveField.SetValue(selection)
-				m.highlightsBoard = m.generateHighlights(selection)
-				m.guessMenu = m.renderGuessList()
-			}
-
-			return m, nil
-		case tea.KeyShiftTab:
-			if guessLen := len(m.guessList); guessLen > 1 {
-				if m.guessCursor > 0 {
-					m.guessCursor -= 1
-				} else {
-					m.guessCursor = guessLen - 1
-				}
-			}
-
-			selection := m.renderMove(m.guessList[m.guessCursor])
-			m.nextMoveField.SetValue(selection)
-			m.highlightsBoard = m.generateHighlights(selection)
-			m.guessMenu = m.renderGuessList()
-		case tea.KeyCtrlF:
-			if m.boardDirection == WhiteDirection {
-				m.boardDirection = BlackDirection
-			} else {
-				m.boardDirection = WhiteDirection
-			}
-			return m, nil
-		case tea.KeyCtrlT:
-			m.guessMenu = "--------10--------20--------30--------40--------50--------60--------70"
-		}
-	default:
-		var input string = m.nextMoveField.Value()
-
-		m.guessList = m.generateGuessList(input)
-		m.guessCursor = NO_GUESS
-		m.guessMenu = m.renderGuessList()
-
-		m.highlightsBoard = m.generateHighlights(input)
-
-		return m, nil
-
-	case GameMsg:
-		switch msg {
-		case GameStart:
-			m.mode = GameMode
-		case GameCPUTurn:
-			moves := m.game.ValidMoves()
-			move := moves[rand.Intn(len(moves))]
-			m.game.Move(move)
-			m.pastMovesView.SetContent(m.renderMoveList())
-
-			return m, m.gameNextStep
-		case GameOver:
-			return m, tea.Quit
-		}
-	case errMsg:
-		m.err = msg
-		return m, nil
-	}
-
-	return m, tea.Batch(tiCmd, vpCmd)
 }
 
 func toPieceType(s string) chess.PieceType {
@@ -851,8 +617,6 @@ func (m *Model) RenderBoard() string {
 	return s
 }
 
-var moveListRegex *regexp.Regexp = regexp.MustCompile(` (\d+\.)`)
-
 func (m *Model) renderMoveList() string {
 	return moveListRegex.ReplaceAllString(m.game.String(),
 		"\n$1",
@@ -906,12 +670,214 @@ func (m *Model) renderGuessList() string {
 	return fmt.Sprintf("%s ", str)
 }
 
-var (
-	columnStyle = lipgloss.NewStyle().
-		Align(lipgloss.Left).
-		Margin(0, margin).
-		Width(columnWidth)
-)
+func New(fen string) *Model {
+	nmField := textinput.New()
+	nmField.Placeholder = "Your move"
+	nmField.Focus()
+	nmField.CharLimit = columnWidth - len(nmField.Prompt)
+	nmField.Width = columnWidth
+
+	pm := viewport.New(columnWidth, 5)
+
+	gameOptions := []func(*chess.Game){chess.UseNotation(chess.LongAlgebraicNotation{})}
+
+	if fen != "" {
+		if newOpts, err := chess.FEN(fen); err == nil {
+			gameOptions = append(gameOptions, newOpts)
+		}
+	}
+
+	return &Model{
+		mode: MainMenuMode,
+		menuItems: []MenuItem{
+			{
+				title:  "Vs. Computer",
+				action: startGame,
+			},
+			{
+				title:  "Credits",
+				action: nil,
+			},
+		},
+		menuCursor:      0,
+		nextMoveField:   nmField,
+		pastMovesView:   pm,
+		game:            *chess.NewGame(gameOptions...),
+		boardDirection:  WhiteDirection,
+		highlightsBoard: 0,
+		guessList:       []chess.Move{},
+		guessMenu:       "",
+		guessCursor:     NO_GUESS,
+		err:             nil,
+	}
+}
+
+func (m *Model) Init() tea.Cmd {
+	return textinput.Blink
+}
+
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch m.mode {
+	case MainMenuMode:
+		return m.mainMenuUpdate(msg)
+	case GameMode:
+		return m.gameUpdate(msg)
+	}
+
+	return m, nil
+}
+
+func (m *Model) mainMenuUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyCtrlC, tea.KeyEsc:
+			return m, tea.Quit
+		case tea.KeyEnter:
+
+			return m, m.menuItems[m.menuCursor].action
+		case tea.KeyUp:
+			if m.menuCursor < len(m.menuItems)-1 {
+				m.menuCursor += 1
+			} else {
+				m.menuCursor = 0
+			}
+		case tea.KeyDown:
+			if m.menuCursor > 0 {
+				m.menuCursor -= 1
+			} else {
+				m.menuCursor = len(m.menuItems) - 1
+			}
+		}
+		return m, nil
+	case GameMsg:
+		switch msg {
+		case GameStart:
+			m.mode = GameMode
+		}
+	}
+
+	return m, nil
+}
+
+func (m *Model) gameUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var (
+		tiCmd tea.Cmd
+		vpCmd tea.Cmd
+	)
+
+	m.nextMoveField, tiCmd = m.nextMoveField.Update(msg)
+	m.pastMovesView, vpCmd = m.pastMovesView.Update(msg)
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyCtrlC, tea.KeyEsc:
+			return m, tea.Quit
+		case tea.KeyEnter:
+			input := m.nextMoveField.Value()
+
+			if err := m.game.MoveStr(input); err != nil {
+				// display err
+			} else {
+				m.nextMoveField.Reset()
+				m.pastMovesView.SetContent(m.renderMoveList())
+			}
+
+			return m, m.gameNextStep
+		case tea.KeyTab:
+			if guessLen := len(m.guessList); guessLen > 1 {
+				if m.guessCursor < guessLen-1 {
+					m.guessCursor += 1
+				} else {
+					m.guessCursor = 0
+				}
+
+				selection := m.renderMove(m.guessList[m.guessCursor])
+				m.nextMoveField.SetValue(selection)
+				m.highlightsBoard = m.generateHighlights(selection)
+				m.guessMenu = m.renderGuessList()
+			}
+
+			return m, nil
+		case tea.KeyShiftTab:
+			if guessLen := len(m.guessList); guessLen > 1 {
+				if m.guessCursor > 0 {
+					m.guessCursor -= 1
+				} else {
+					m.guessCursor = guessLen - 1
+				}
+			}
+
+			selection := m.renderMove(m.guessList[m.guessCursor])
+			m.nextMoveField.SetValue(selection)
+			m.highlightsBoard = m.generateHighlights(selection)
+			m.guessMenu = m.renderGuessList()
+		case tea.KeyCtrlF:
+			if m.boardDirection == WhiteDirection {
+				m.boardDirection = BlackDirection
+			} else {
+				m.boardDirection = WhiteDirection
+			}
+			return m, nil
+		case tea.KeyCtrlT:
+			m.guessMenu = "--------10--------20--------30--------40--------50--------60--------70"
+		}
+	default:
+		var input string = m.nextMoveField.Value()
+
+		m.guessList = m.generateGuessList(input)
+		m.guessCursor = NO_GUESS
+		m.guessMenu = m.renderGuessList()
+
+		m.highlightsBoard = m.generateHighlights(input)
+
+		return m, nil
+
+	case GameMsg:
+		switch msg {
+		case GameStart:
+			m.mode = GameMode
+		case GameCPUTurn:
+			moves := m.game.ValidMoves()
+			move := moves[rand.Intn(len(moves))]
+			m.game.Move(move)
+			m.pastMovesView.SetContent(m.renderMoveList())
+
+			return m, m.gameNextStep
+		case GameOver:
+			return m, tea.Quit
+		}
+	case errMsg:
+		m.err = msg
+		return m, nil
+	}
+
+	return m, tea.Batch(tiCmd, vpCmd)
+}
+
+func (m *Model) View() string {
+	switch m.mode {
+	case MainMenuMode:
+		return m.mainMenuView()
+	case GameMode:
+		return m.gameView()
+	}
+
+	return ""
+}
+
+func (m *Model) mainMenuView() string {
+	return lipgloss.JoinVertical(
+		lipgloss.Center,
+		renderTitle(),
+		lipgloss.JoinHorizontal(
+			lipgloss.Top,
+			m.renderMenuItems(),
+			sidebar,
+		),
+	)
+}
 
 func (m *Model) gameView() string {
 	column1 := m.RenderBoard()
@@ -937,4 +903,25 @@ func (m *Model) gameView() string {
 		lipgloss.Top,
 		mainContent, footer,
 	)
+}
+
+// Execute adds all child commands to the root command and sets flags appropriately.
+// This is called by main.main(). It only needs to happen once to the rootCmd.
+func Execute() {
+	err := rootCmd.Execute()
+	if err != nil {
+		os.Exit(1)
+	}
+}
+
+func init() {
+	// Here you will define your flags and configuration settings.
+	// Cobra supports persistent flags, which, if defined here,
+	// will be global for your application.
+
+	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.bubble-chess.yaml)")
+
+	// Cobra also supports local flags, which will only run
+	// when this action is called directly.
+	// rootCmd.Flags().StringVarP(&customStartFEN, "fen", "f", "", "FEN to start from")
 }
