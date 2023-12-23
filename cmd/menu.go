@@ -41,10 +41,16 @@ type MenuItem struct {
 	title  string
 	action tea.Cmd
 }
+type creditVisual func() string
 type Model struct {
-	mode            programMode
-	menuItems       []MenuItem
-	menuCursor      int
+	mode programMode
+
+	menuItems  []MenuItem
+	menuCursor int
+
+	credits       []creditVisual
+	creditsCursor int
+
 	pastMovesView   viewport.Model
 	nextMoveField   textinput.Model
 	game            chess.Game
@@ -68,6 +74,15 @@ d888888 888v888 8888<  88888<  88888<
 ?888888 888^888 8888<   >88888  >88888
  "Y8888 ?88 88? ?88888 88888P  88888P`
 
+const golangString string = `                   d88888b       d88888b
+                d88P   ?88b   d88P   ?88b
+              d8P       P"  d8P       ?8b
+    .oooooo d88           d88         88b
+.ooooooooo ?88    od88888888         88P
+     .ooo ?8b       >8P ?8b       d8P
+          ?8bo   od8P   ?8bo   od8P
+           ?88888P       ?88888P`
+
 const sidebar = `bubble-chess 0.0.1`
 
 var chessTitle string = ""
@@ -82,6 +97,8 @@ const (
 	GameCPUTurn = iota
 	GameOver
 	GameStart
+	GameExit
+	GameViewCredits
 )
 
 const (
@@ -101,6 +118,7 @@ const (
 const (
 	MainMenuMode = iota
 	GameMode
+	CreditsMode
 )
 
 var rootCmd = &cobra.Command{
@@ -165,6 +183,10 @@ var columnStyle = lipgloss.NewStyle().
 	Margin(0, margin).
 	Width(columnWidth)
 
+var golangStyle = lipgloss.NewStyle().
+	Foreground(white).
+	Background(cyan)
+
 var chessStyle = lipgloss.NewStyle().
 	Background(cyan).
 	Foreground(black)
@@ -172,6 +194,11 @@ var chessStyle = lipgloss.NewStyle().
 var bannerStyle = lipgloss.NewStyle().
 	Align(lipgloss.Left).
 	Margin(1)
+
+var creditsStyle = lipgloss.NewStyle().
+	Align(lipgloss.Left).
+	Margin(2).
+	Width(50)
 
 var selectedMenuItemStyle = lipgloss.NewStyle().
 	Background(magenta).
@@ -191,15 +218,41 @@ func contains(squares []chess.Square, s chess.Square) bool {
 
 func (gm GameMsg) Msg() {}
 
+func startCredits() tea.Msg {
+	return GameMsg(GameViewCredits)
+}
+
 func startGame() tea.Msg {
-	// p := tea.NewProgram(game.New(""))
-
-	// if _, err := p.Run(); err != nil {
-	// 	fmt.Printf("Alas, there's been an error: %v", err)
-	// 	os.Exit(1)
-	// }
-
 	return GameMsg(GameStart)
+}
+
+func exitGame() tea.Msg {
+	return GameMsg(GameExit)
+}
+
+func golang() string {
+	var styledText string
+	var text string
+	for _, ru := range golangString {
+		if str := string(ru); str != " " && str != "\n" {
+			text += str
+		} else {
+			styledText += golangStyle.Render(text)
+			text = ""
+			styledText += str
+		}
+	}
+	styledText += golangStyle.Render(text)
+
+	return creditsStyle.Render(styledText)
+}
+
+func bubbletea() string {
+	return creditsStyle.Render("[insert ascii art of bubbletea logo]")
+}
+
+func notnil() string {
+	return creditsStyle.Render("[insert ascii art of notnil/chess pkg]")
 }
 
 func renderTitle() (title string) {
@@ -696,10 +749,15 @@ func New(fen string) *Model {
 			},
 			{
 				title:  "Credits",
-				action: nil,
+				action: startCredits,
 			},
 		},
-		menuCursor:      0,
+		menuCursor: 0,
+		credits: []creditVisual{
+			golang,
+			bubbletea,
+			notnil,
+		},
 		nextMoveField:   nmField,
 		pastMovesView:   pm,
 		game:            *chess.NewGame(gameOptions...),
@@ -722,6 +780,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.mainMenuUpdate(msg)
 	case GameMode:
 		return m.gameUpdate(msg)
+	case CreditsMode:
+		return m.creditsUpdate(msg)
 	}
 
 	return m, nil
@@ -754,6 +814,8 @@ func (m *Model) mainMenuUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg {
 		case GameStart:
 			m.mode = GameMode
+		case GameViewCredits:
+			m.mode = CreditsMode
 		}
 	}
 
@@ -772,8 +834,10 @@ func (m *Model) gameUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
+		case tea.KeyCtrlC:
 			return m, tea.Quit
+		case tea.KeyEsc:
+			return m, exitGame
 		case tea.KeyEnter:
 			input := m.nextMoveField.Value()
 
@@ -836,8 +900,8 @@ func (m *Model) gameUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case GameMsg:
 		switch msg {
-		case GameStart:
-			m.mode = GameMode
+		case GameExit:
+			m.mode = MainMenuMode
 		case GameCPUTurn:
 			moves := m.game.ValidMoves()
 			move := moves[rand.Intn(len(moves))]
@@ -856,12 +920,48 @@ func (m *Model) gameUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(tiCmd, vpCmd)
 }
 
+func (m *Model) creditsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyCtrlC:
+			return m, tea.Quit
+		case tea.KeyEsc:
+			return m, exitGame
+		case tea.KeyLeft:
+			if m.creditsCursor < len(m.credits)-1 {
+				m.creditsCursor += 1
+			} else {
+				m.creditsCursor = 0
+			}
+		case tea.KeyRight:
+			if m.creditsCursor > 0 {
+				m.creditsCursor -= 1
+			} else {
+				m.creditsCursor = len(m.credits) - 1
+			}
+		}
+		return m, nil
+	case GameMsg:
+		switch msg {
+		case GameStart:
+			m.mode = GameMode
+		case GameViewCredits:
+			m.mode = CreditsMode
+		}
+	}
+
+	return m, nil
+}
+
 func (m *Model) View() string {
 	switch m.mode {
 	case MainMenuMode:
 		return m.mainMenuView()
 	case GameMode:
 		return m.gameView()
+	case CreditsMode:
+		return m.creditsView()
 	}
 
 	return ""
@@ -890,7 +990,7 @@ func (m *Model) gameView() string {
 		lipgloss.Top,
 		columnStyle.Copy().Align(lipgloss.Center).Render(column1),
 		columnStyle.Copy().Align(lipgloss.Left).Render(column2),
-		columnStyle.Copy().MarginRight(0).Render("esc/^C quit\ntab toggle\n^F flip"),
+		columnStyle.Copy().MarginRight(0).Render("esc back\n^C quit\ntab toggle\n^F flip"),
 	)
 
 	footer := lipgloss.NewStyle().
@@ -902,6 +1002,14 @@ func (m *Model) gameView() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
 		mainContent, footer,
+	)
+}
+
+func (m *Model) creditsView() string {
+	return lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		m.credits[m.creditsCursor](),
+		columnStyle.Copy().MarginRight(0).Render("esc back\n^C quit\ntab toggle\n^F flip"),
 	)
 }
 
