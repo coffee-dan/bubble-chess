@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"os"
 
+	game "bubble-chess/internals/game"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -44,8 +46,13 @@ to be feature complete by December 31 2023.`,
 	}
 )
 
+type MenuItem struct {
+	title  string
+	action tea.Cmd
+}
+
 type Model struct {
-	menuItems  []string
+	menuItems  []MenuItem
 	menuCursor int
 	err        error
 }
@@ -53,10 +60,30 @@ type Model struct {
 func New() *Model {
 
 	return &Model{
-		menuItems:  []string{"Vs. Computer", "Credits"},
+		menuItems: []MenuItem{
+			{
+				title:  "Vs. Computer",
+				action: startGame,
+			},
+			{
+				title:  "Credits",
+				action: nil,
+			},
+		},
 		menuCursor: 0,
 		err:        nil,
 	}
+}
+
+func startGame() tea.Msg {
+	p := tea.NewProgram(game.New(""))
+
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("Alas, there's been an error: %v", err)
+		os.Exit(1)
+	}
+
+	return nil
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -69,6 +96,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
+		case tea.KeyEnter:
+			return m, tea.Sequence(
+				tea.ClearScreen,
+				m.menuItems[m.menuCursor].action,
+			)
 		case tea.KeyUp:
 			if m.menuCursor < len(m.menuItems)-1 {
 				m.menuCursor += 1
@@ -148,7 +180,7 @@ func renderTitle() (title string) {
 func (m *Model) renderMenuItems() string {
 	var menu = ""
 	for idx, itm := range m.menuItems {
-		baseItm := fmt.Sprintf(" %s ", itm)
+		baseItm := fmt.Sprintf(" %s ", itm.title)
 		if idx == m.menuCursor {
 			menu += selectedMenuItemStyle.Render(baseItm)
 		} else {
