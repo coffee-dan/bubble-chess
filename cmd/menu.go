@@ -218,14 +218,6 @@ func contains(squares []chess.Square, s chess.Square) bool {
 
 func (gm GameMsg) Msg() {}
 
-func startCredits() tea.Msg {
-	return GameMsg(GameViewCredits)
-}
-
-func startGame() tea.Msg {
-	return GameMsg(GameStart)
-}
-
 func exitGame() tea.Msg {
 	return GameMsg(GameExit)
 }
@@ -745,11 +737,15 @@ func New(fen string) *Model {
 		menuItems: []MenuItem{
 			{
 				title:  "Vs. Computer",
-				action: startGame,
+				action: func() tea.Msg { return GameMsg(GameStart) },
+			},
+			{
+				title:  "Vs. Player",
+				action: func() tea.Msg { return GameMsg(GameStart) },
 			},
 			{
 				title:  "Credits",
-				action: startCredits,
+				action: func() tea.Msg { return GameMsg(GameViewCredits) },
 			},
 		},
 		menuCursor: 0,
@@ -796,13 +792,13 @@ func (m *Model) mainMenuUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 
 			return m, m.menuItems[m.menuCursor].action
-		case tea.KeyUp:
+		case tea.KeyDown:
 			if m.menuCursor < len(m.menuItems)-1 {
 				m.menuCursor += 1
 			} else {
 				m.menuCursor = 0
 			}
-		case tea.KeyDown:
+		case tea.KeyUp:
 			if m.menuCursor > 0 {
 				m.menuCursor -= 1
 			} else {
